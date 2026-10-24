@@ -1,13 +1,12 @@
 /**
  * Sem Perder a Data - JavaScript da Aplicação
- * PWA Instalável no Celular da Ednéia
- * Compatível com Cloudflare Pages + Cloudflare D1 e Armazenamento Local
+ * Versão Mobile Otimizada com Menu Inferior (Bottom Bar) e Zero Rolagem Lateral
  */
 
 let deferredInstallPrompt = null;
 
 const App = {
-  apiEndpoint: 'api', // 'api' para Cloudflare D1, 'api.php' para XAMPP local
+  apiEndpoint: 'api',
   useLocalDB: false,
   state: {
     persons: [],
@@ -37,14 +36,14 @@ const App = {
         if (data.success) {
           this.apiEndpoint = 'api';
           this.useLocalDB = false;
-          console.log('✅ Conectado ao Cloudflare D1 (Banco de dados na nuvem da Cloudflare)');
+          console.log('✅ Conectado ao Cloudflare D1');
           await this.processLoadedData(data);
           return;
         }
       }
     } catch (e) {}
 
-    // 2º Se não for Cloudflare, tenta o PHP local do XAMPP
+    // 2º Tenta o PHP local do XAMPP
     try {
       const resPHP = await fetch('api.php?action=get_all_data');
       if (resPHP.ok && resPHP.headers.get('content-type')?.includes('application/json')) {
@@ -52,14 +51,14 @@ const App = {
         if (data.success) {
           this.apiEndpoint = 'api.php';
           this.useLocalDB = false;
-          console.log('✅ Conectado ao PHP/SQLite local (XAMPP)');
+          console.log('✅ Conectado ao PHP/SQLite local');
           await this.processLoadedData(data);
           return;
         }
       }
     } catch (e) {}
 
-    // 3º Se ambos falharem, opera via LocalDB seguro
+    // 3º Fallback para LocalDB seguro
     console.log('ℹ️ Operando via armazenamento local persistente');
     this.useLocalDB = true;
     this.localDB.init();
@@ -71,14 +70,12 @@ const App = {
   },
 
   setupPwaInstall() {
-    // Registro do Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js')
         .then(() => console.log('✅ Service Worker PWA ativo'))
         .catch(err => console.log('Aviso SW:', err));
     }
 
-    // Captura o evento nativo de instalação no celular
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredInstallPrompt = e;
@@ -89,7 +86,7 @@ const App = {
     window.addEventListener('appinstalled', () => {
       deferredInstallPrompt = null;
       document.querySelectorAll('.btn-install-pwa').forEach(btn => btn.style.display = 'none');
-      this.showToast('Aplicativo instalado no seu celular com sucesso!', 'success');
+      this.showToast('Aplicativo instalado no celular!', 'success');
     });
   },
 
@@ -102,8 +99,7 @@ const App = {
       }
       deferredInstallPrompt = null;
     } else {
-      // Instrução caso esteja no iOS Safari ou navegador que não use beforeinstallprompt
-      alert('Para instalar no seu celular:\n\nNo Android (Chrome): Toque nos 3 pontinhos no canto superior e selecione "Instalar aplicativo" ou "Adicionar à tela inicial".\n\nNo iPhone (Safari): Toque no botão de Compartilhar (quadrado com seta para cima) e escolha "Adicionar à Tela de Início".');
+      alert('Para instalar no celular:\n\nNo Android (Chrome): Toque nos 3 pontinhos e escolha "Instalar aplicativo" ou "Adicionar à tela inicial".\n\nNo iPhone (Safari): Toque no botão de Compartilhar e selecione "Adicionar à Tela de Início".');
     }
   },
 
@@ -119,15 +115,14 @@ const App = {
     this.updateBadges();
     this.populatePersonSelects();
     this.populateAppointmentSelects();
-    this.renderFamilyFilterBar();
     this.renderCurrentTab();
   },
 
   /* =========================================================================
-     ADAPTADOR LOCALSTORAGE (APENAS NOMES, SEM DESCRIÇÕES REDUNDANTES)
+     ARMAZENAMENTO LOCAL COM OS 6 NOMES FIXOS
      ========================================================================= */
   localDB: {
-    STORAGE_KEY: 'sem_perder_a_data_db_v2',
+    STORAGE_KEY: 'sem_perder_a_data_db_v3',
 
     get() {
       const raw = localStorage.getItem(this.STORAGE_KEY);
@@ -144,12 +139,12 @@ const App = {
       if (!data) {
         data = {
           persons: [
-            { id: 1, name: 'Ednéia', relation: '', color: '#8b5cf6', notes: 'Ednéia' },
-            { id: 2, name: 'Mãe', relation: '', color: '#ec4899', notes: 'Mãe' },
-            { id: 3, name: 'Edyr', relation: '', color: '#2563eb', notes: 'Edyr' },
-            { id: 4, name: 'Carlos Romeu', relation: '', color: '#059669', notes: 'Carlos Romeu' },
-            { id: 5, name: 'Rogério', relation: '', color: '#ea580c', notes: 'Rogério' },
-            { id: 6, name: 'Tia Mariazinha', relation: '', color: '#0891b2', notes: 'Tia Mariazinha' }
+            { id: 1, name: 'Ednéia', color: '#8b5cf6' },
+            { id: 2, name: 'Mãe', color: '#ec4899' },
+            { id: 3, name: 'Edyr', color: '#2563eb' },
+            { id: 4, name: 'Carlos Romeu', color: '#059669' },
+            { id: 5, name: 'Rogério', color: '#ea580c' },
+            { id: 6, name: 'Tia Mariazinha', color: '#0891b2' }
           ],
           appointments: [],
           exams: [],
@@ -288,23 +283,15 @@ const App = {
   },
 
   bindEvents() {
-    document.querySelectorAll('.nav-tab-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+    // Menu Inferior (Bottom Navigation Bar)
+    document.querySelectorAll('.bottom-nav-item').forEach(btn => {
+      btn.addEventListener('click', () => {
         const tab = btn.dataset.tab;
         this.switchTab(tab);
       });
     });
 
-    document.addEventListener('click', (e) => {
-      const chip = e.target.closest('.family-chip');
-      if (chip) {
-        document.querySelectorAll('.family-chip').forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        this.state.selectedFamilyFilter = chip.dataset.personId;
-        this.renderCurrentTab();
-      }
-    });
-
+    // Fechamento de Modais
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
       overlay.addEventListener('click', (e) => {
         if (e.target === overlay || e.target.closest('.modal-close-btn') || e.target.closest('.btn-cancel-modal')) {
@@ -328,7 +315,6 @@ const App = {
         await this.processLoadedData(data);
       }
     } catch (err) {
-      console.warn('Falha na API, alternando para armazenamento local');
       this.useLocalDB = true;
       this.localDB.init();
       return this.loadData();
@@ -337,7 +323,7 @@ const App = {
 
   switchTab(tabName) {
     this.state.currentTab = tabName;
-    document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+    document.querySelectorAll('.bottom-nav-item').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.tab === tabName);
     });
     this.renderCurrentTab();
@@ -346,47 +332,48 @@ const App = {
 
   updateBadges() {
     const s = this.state.summary;
-    const badgeLogistica = document.getElementById('badge-trips');
-    const badgeConsultas = document.getElementById('badge-appointments');
-    const badgeExames = document.getElementById('badge-exams');
-    const badgeRemedios = document.getElementById('badge-meds');
+    const badgeTrips = document.getElementById('badge-bottom-trips');
+    const badgeConsultas = document.getElementById('badge-bottom-consultas');
+    const badgeExames = document.getElementById('badge-bottom-exames');
+    const badgeRemedios = document.getElementById('badge-bottom-remedios');
 
-    if (badgeLogistica) {
-      badgeLogistica.textContent = s.shared_trips_count || 0;
-      badgeLogistica.className = s.shared_trips_count > 0 ? 'nav-tab-badge badge-alert' : 'nav-tab-badge';
+    if (badgeTrips) {
+      badgeTrips.textContent = s.shared_trips_count || '';
+      badgeTrips.style.display = s.shared_trips_count > 0 ? 'inline-block' : 'none';
     }
-    if (badgeConsultas) badgeConsultas.textContent = this.state.appointments.length;
+    if (badgeConsultas) {
+      badgeConsultas.textContent = this.state.appointments.length || '';
+      badgeConsultas.style.display = this.state.appointments.length > 0 ? 'inline-block' : 'none';
+    }
     if (badgeExames) {
-      badgeExames.textContent = s.exams_ready_to_bring > 0 ? `${s.exams_ready_to_bring} prontos` : this.state.exams.length;
-      badgeExames.className = s.exams_ready_to_bring > 0 ? 'nav-tab-badge badge-alert' : 'nav-tab-badge';
+      badgeExames.textContent = s.exams_ready_to_bring > 0 ? s.exams_ready_to_bring : (this.state.exams.length || '');
+      badgeExames.style.display = this.state.exams.length > 0 ? 'inline-block' : 'none';
     }
     if (badgeRemedios) {
-      badgeRemedios.textContent = s.meds_to_buy > 0 ? `${s.meds_to_buy} p/ comprar` : this.state.medications.length;
-      badgeRemedios.className = s.meds_to_buy > 0 ? 'nav-tab-badge badge-alert' : 'nav-tab-badge';
+      badgeRemedios.textContent = s.meds_to_buy > 0 ? s.meds_to_buy : '';
+      badgeRemedios.style.display = s.meds_to_buy > 0 ? 'inline-block' : 'none';
     }
   },
 
-  renderFamilyFilterBar() {
-    const container = document.getElementById('family-filter-container');
-    if (!container) return;
+  setPersonFilter(personId) {
+    this.state.selectedFamilyFilter = personId;
+    this.renderCurrentTab();
+  },
 
-    let html = `
-      <div class="family-chip ${this.state.selectedFamilyFilter === 'all' ? 'active' : ''}" data-person-id="all">
-        <span>Todas as Pessoas</span>
+  getFilterSelectHtml() {
+    return `
+      <div class="person-filter-wrapper">
+        <span class="person-filter-label">👤 Filtrar:</span>
+        <select class="person-filter-select" onchange="App.setPersonFilter(this.value)">
+          <option value="all" ${this.state.selectedFamilyFilter === 'all' ? 'selected' : ''}>Todas as 6 Pessoas</option>
+          ${this.state.persons.map(p => `
+            <option value="${p.id}" ${this.state.selectedFamilyFilter == p.id ? 'selected' : ''}>
+              ${this.escapeHtml(p.name)}
+            </option>
+          `).join('')}
+        </select>
       </div>
     `;
-
-    this.state.persons.forEach(p => {
-      const activeClass = this.state.selectedFamilyFilter == p.id ? 'active' : '';
-      html += `
-        <div class="family-chip ${activeClass}" data-person-id="${p.id}">
-          <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background-color:${p.color};"></span>
-          <span>${this.escapeHtml(p.name)}</span>
-        </div>
-      `;
-    });
-
-    container.innerHTML = html;
   },
 
   renderCurrentTab() {
@@ -410,41 +397,34 @@ const App = {
         this.renderRemediosTab(content);
         break;
       case 'familiares':
-        this.renderFamiliaresTab(content);
+        this.renderPessoasTab(content);
         break;
     }
   },
 
   /* =========================================================================
-     ABA 1: LOGÍSTICA INTELIGENTE & CARONA FAMILIAR
+     ABA 1: VIAGENS & CARONA
      ========================================================================= */
   renderLogisticaTab(container) {
     const trips = this.state.trips;
 
     let html = `
       <div class="logistics-hero-banner">
-        <div class="banner-content">
-          <div class="banner-tag">🚗 Roteiro de Carona & Economia</div>
-          <h2 class="banner-title">Otimizador de Deslocamentos da Ednéia</h2>
-          <p class="banner-desc">
-            O sistema combina compromissos na mesma data e cidade para que você aproveite a viagem, leve mais pessoas de uma vez e passe na farmácia!
-          </p>
-        </div>
+        <div class="banner-tag">🚗 Carona & Economia</div>
+        <h2 class="banner-title">Otimizador de Saídas da Ednéia</h2>
+        <p class="banner-desc">
+          O sistema agrupa quem tem consulta ou exame na mesma cidade e data para economizar viagens e tempo!
+        </p>
       </div>
 
       <div class="action-bar">
         <div class="action-bar-title">
-          <span>📅 Viagens & Saídas Agrupadas</span>
+          <span>📅 Viagens Programadas</span>
           <span class="status-pill status-agendado">${trips.length} data(s)</span>
         </div>
-        <div class="action-buttons-group">
-          <button class="btn btn-primary" onclick="App.openModal('modal-appointment')">
-            <span>+ Nova Consulta</span>
-          </button>
-          <button class="btn btn-secondary" onclick="App.openModal('modal-exam')">
-            <span>+ Novo Exame</span>
-          </button>
-        </div>
+        <button class="btn btn-sm btn-primary" onclick="App.openNewSheet()">
+          <span>+ Agendar</span>
+        </button>
       </div>
     `;
 
@@ -452,10 +432,10 @@ const App = {
       html += `
         <div class="empty-state">
           <div class="empty-state-icon">🚗</div>
-          <h3>Nenhum compromisso agendado ainda</h3>
-          <p>Cadastre consultas e exames para que o sistema organize as viagens na mesma data e cidade.</p>
-          <button class="btn btn-primary" style="margin-top: 1rem;" onclick="App.openModal('modal-appointment')">
-            Agendar Primeira Consulta
+          <h3>Nenhuma viagem programada</h3>
+          <p>Cadastre consultas e exames para que o sistema organize as saídas por cidade.</p>
+          <button class="btn btn-primary" style="margin-top: 0.85rem;" onclick="App.openModal('modal-appointment')">
+            + Agendar Consulta
           </button>
         </div>
       `;
@@ -481,23 +461,21 @@ const App = {
               <div class="trip-meta-title">
                 <h3>
                   📍 ${this.escapeHtml(trip.city)}
-                  ${isShared ? '<span class="trip-badge-shared">🌟 CARONA RECOMENDADA (' + trip.total_people + ' Pessoas)</span>' : ''}
                 </h3>
-                <p>${formattedDate} • ${trip.total_events} compromisso(s) programado(s)</p>
+                <p>${formattedDate} • ${trip.total_events} compromisso(s)</p>
               </div>
             </div>
             
             <div>
               <span class="status-pill ${isShared ? 'status-pronto' : 'status-agendado'}">
-                ${isShared ? '✅ Viagem Compartilhada' : 'Individual'}
+                ${isShared ? '🌟 ' + trip.total_people + ' Pessoas Juntas' : '1 Pessoa'}
               </span>
             </div>
           </div>
 
           <div class="trip-body">
-            <!-- Pessoas que vão no carro -->
+            <!-- Pessoas no carro -->
             <div class="trip-passengers">
-              <strong style="font-size:0.85rem; color:var(--text-muted); margin-right: 0.5rem;">Quem vai junto:</strong>
               ${trip.people.map(p => `
                 <span class="passenger-pill" style="background-color: ${p.color};">
                   👤 ${this.escapeHtml(p.name)}
@@ -505,14 +483,11 @@ const App = {
               `).join('')}
             </div>
 
-            <!-- Linha do tempo de paradas -->
+            <!-- Paradas -->
             <div class="timeline-stops">
-              <strong style="font-size:0.88rem; color:var(--text-main); margin-bottom: 0.25rem; display:block;">
-                🗺️ Roteiro de Paradas no dia:
-              </strong>
               ${trip.events.map(ev => `
                 <div class="stop-item">
-                  <div class="stop-time">⏰ ${ev.time && ev.time !== 'Sem hora' ? ev.time.substring(0, 5) : '--:--'}</div>
+                  <div class="stop-time">${ev.time && ev.time !== 'Sem hora' ? ev.time.substring(0, 5) : '--:--'}</div>
                   <div class="stop-details">
                     <span class="stop-person-tag" style="background-color: ${ev.person_color};">
                       ${this.escapeHtml(ev.person_name)}
@@ -520,8 +495,8 @@ const App = {
                     <div class="stop-title">${this.escapeHtml(ev.title)}</div>
                     <div class="stop-location">🏢 ${this.escapeHtml(ev.location)} (${this.escapeHtml(ev.city)})</div>
                     ${ev.exams_to_bring > 0 ? `
-                      <div style="margin-top:0.35rem; font-size:0.82rem; color:#b45309; font-weight:700;">
-                        ⚠️ ATENÇÃO: Levar ${ev.exams_to_bring} exame(s) nesta consulta!
+                      <div style="margin-top:0.25rem; font-size:0.78rem; color:#b45309; font-weight:800;">
+                        ⚠️ LEVAR ${ev.exams_to_bring} EXAME(S) NESTA CONSULTA!
                       </div>
                     ` : ''}
                   </div>
@@ -529,17 +504,14 @@ const App = {
               `).join('')}
             </div>
 
-            <!-- Dica de Farmácia -->
             ${trip.meds_to_buy && trip.meds_to_buy.length > 0 ? `
               <div class="pharmacy-hint-box">
-                <span style="font-size:1.4rem;">💊</span>
+                <span style="font-size:1.2rem;">💊</span>
                 <div>
-                  <strong>Aproveite a ida a ${this.escapeHtml(trip.city)} para comprar remédios:</strong>
-                  <ul style="margin: 0.35rem 0 0 1.2rem; font-size: 0.85rem;">
-                    ${trip.meds_to_buy.map(m => `
-                      <li><strong>${this.escapeHtml(m.name)}</strong> (para ${this.escapeHtml(m.person_name)})</li>
-                    `).join('')}
-                  </ul>
+                  <strong>Aproveite para comprar remédios em ${this.escapeHtml(trip.city)}:</strong>
+                  <div style="margin-top: 0.2rem; font-size: 0.8rem;">
+                    ${trip.meds_to_buy.map(m => `• ${this.escapeHtml(m.name)} (para ${this.escapeHtml(m.person_name)})`).join('<br>')}
+                  </div>
                 </div>
               </div>
             ` : ''}
@@ -564,59 +536,56 @@ const App = {
 
     let html = `
       <div class="summary-cards-grid">
-        <div class="stat-card" onclick="App.switchTab('consultas')" style="cursor:pointer;">
+        <div class="stat-card" onclick="App.switchTab('consultas')">
           <div class="stat-icon primary">🩺</div>
           <div class="stat-info">
             <div class="stat-number">${s.week_appointments || 0}</div>
-            <div class="stat-label">Consultas nesta Semana</div>
+            <div class="stat-label">Consultas na Semana</div>
           </div>
         </div>
 
-        <div class="stat-card" onclick="App.switchTab('logistica')" style="cursor:pointer;">
+        <div class="stat-card" onclick="App.switchTab('logistica')">
           <div class="stat-icon purple">🚗</div>
           <div class="stat-info">
             <div class="stat-number">${s.shared_trips_count || 0}</div>
-            <div class="stat-label">Viagens Compartilhadas</div>
+            <div class="stat-label">Caronas / Viagens</div>
           </div>
         </div>
 
-        <div class="stat-card" onclick="App.switchTab('exames')" style="cursor:pointer;">
+        <div class="stat-card" onclick="App.switchTab('exames')">
           <div class="stat-icon success">🔬</div>
           <div class="stat-info">
             <div class="stat-number">${s.exams_ready_to_bring || 0}</div>
-            <div class="stat-label">Exames Prontos p/ Levar</div>
+            <div class="stat-label">Exames Prontos</div>
           </div>
         </div>
 
-        <div class="stat-card" onclick="App.switchTab('remedios')" style="cursor:pointer;">
+        <div class="stat-card" onclick="App.switchTab('remedios')">
           <div class="stat-icon warning">💊</div>
           <div class="stat-info">
             <div class="stat-number">${s.meds_to_buy || 0}</div>
-            <div class="stat-label">Remédios para Comprar</div>
+            <div class="stat-label">Remédios a Comprar</div>
           </div>
         </div>
       </div>
 
       ${readyExams.length > 0 ? `
-        <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-left:5px solid #10b981; border-radius:var(--radius-md); padding:1.25rem; margin-bottom:1.5rem;">
-          <h3 style="color:#065f46; font-size:1.1rem; font-weight:800; display:flex; align-items:center; gap:0.5rem;">
-            <span>✅ Exames Prontos para Apresentar ao Médico!</span>
+        <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-left:4px solid #10b981; border-radius:var(--radius-md); padding:1rem; margin-bottom:1rem;">
+          <h3 style="color:#065f46; font-size:1rem; font-weight:800;">
+            ✅ Exames Prontos para Levar!
           </h3>
-          <p style="font-size:0.9rem; color:#047857; margin:0.35rem 0 0.75rem;">
-            Os seguintes exames já estão prontos. Lembre-se de levá-los na consulta de retorno:
-          </p>
-          <div style="display:flex; flex-direction:column; gap:0.5rem;">
+          <div style="display:flex; flex-direction:column; gap:0.4rem; margin-top:0.5rem;">
             ${readyExams.map(ex => `
-              <div style="background:#ffffff; border:1px solid #d1fae5; padding:0.75rem 1rem; border-radius:var(--radius-sm); display:flex; justify-content:space-between; align-items:center;">
+              <div style="background:#ffffff; border:1px solid #d1fae5; padding:0.6rem 0.8rem; border-radius:var(--radius-sm); display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                  <span class="person-badge" style="background-color:${ex.person_color}; margin-right:0.5rem;">${this.escapeHtml(ex.person_name)}</span>
-                  <strong>${this.escapeHtml(ex.exam_name)}</strong>
-                  <div style="font-size:0.82rem; color:#065f46; margin-top:0.2rem;">
-                    🎯 Levar para: <strong>${this.escapeHtml(ex.target_doctor_name || 'Consulta de Retorno')}</strong> 
-                    ${ex.target_appointment_date ? ` em ${this.formatDate(ex.target_appointment_date)} (${this.escapeHtml(ex.target_city || '')})` : ''}
+                  <span class="person-badge" style="background-color:${ex.person_color};">${this.escapeHtml(ex.person_name)}</span>
+                  <strong style="font-size:0.9rem;">${this.escapeHtml(ex.exam_name)}</strong>
+                  <div style="font-size:0.78rem; color:#065f46; margin-top:2px;">
+                    🎯 Levar no retorno: <strong>${this.escapeHtml(ex.target_doctor_name || ex.target_specialty || 'Consulta')}</strong> 
+                    ${ex.target_appointment_date ? ` em ${this.formatDate(ex.target_appointment_date)}` : ''}
                   </div>
                 </div>
-                <button class="btn btn-sm btn-secondary" onclick="App.markExamDone(${ex.id})">Marcar como Entregue</button>
+                <button class="btn btn-sm btn-secondary" onclick="App.markExamDone(${ex.id})">Entregue</button>
               </div>
             `).join('')}
           </div>
@@ -632,10 +601,10 @@ const App = {
 
       ${upcoming.length === 0 ? `
         <div class="empty-state">
-          <p>Nenhuma consulta futura agendada no momento.</p>
+          <p>Nenhuma consulta agendada.</p>
         </div>
       ` : `
-        <div style="display:flex; flex-direction:column; gap:0.75rem;">
+        <div style="display:flex; flex-direction:column; gap:0.6rem;">
           ${upcoming.map(app => this.getAppointmentCardHtml(app)).join('')}
         </div>
       `}
@@ -645,7 +614,7 @@ const App = {
   },
 
   /* =========================================================================
-     ABA 3: CONSULTAS MÉDICAS
+     ABA 3: CONSULTAS
      ========================================================================= */
   renderConsultasTab(container) {
     let list = this.state.appointments;
@@ -654,15 +623,15 @@ const App = {
     }
 
     let html = `
-      <div id="family-filter-container" class="family-filter-bar"></div>
+      ${this.getFilterSelectHtml()}
 
       <div class="action-bar">
         <div class="action-bar-title">
           <span>🩺 Consultas Médicas</span>
           <span class="status-pill status-agendado">${list.length}</span>
         </div>
-        <button class="btn btn-primary" onclick="App.openModal('modal-appointment')">
-          <span>+ Agendar Consulta</span>
+        <button class="btn btn-sm btn-primary" onclick="App.openModal('modal-appointment')">
+          <span>+ Agendar</span>
         </button>
       </div>
     `;
@@ -672,11 +641,11 @@ const App = {
         <div class="empty-state">
           <div class="empty-state-icon">🩺</div>
           <h3>Nenhuma consulta cadastrada</h3>
-          <p>Clique no botão acima para agendar uma consulta.</p>
+          <p>Toque em "+ Agendar" para marcar uma consulta.</p>
         </div>
       `;
     } else {
-      html += `<div style="display:flex; flex-direction:column; gap:0.75rem;">`;
+      html += `<div style="display:flex; flex-direction:column; gap:0.6rem;">`;
       list.forEach(app => {
         html += this.getAppointmentCardHtml(app);
       });
@@ -684,23 +653,18 @@ const App = {
     }
 
     container.innerHTML = html;
-    this.renderFamilyFilterBar();
   },
 
   getAppointmentCardHtml(app) {
     return `
       <div class="item-card">
         <div class="item-card-header">
-          <div>
-            <span class="person-badge" style="background-color: ${app.person_color};">
-              👤 ${this.escapeHtml(app.person_name)}
-            </span>
-          </div>
-          <div>
-            <span class="status-pill ${app.status === 'realizada' ? 'status-concluido' : 'status-agendado'}">
-              ${app.status === 'realizada' ? 'Concluída' : 'Agendada'}
-            </span>
-          </div>
+          <span class="person-badge" style="background-color: ${app.person_color};">
+            👤 ${this.escapeHtml(app.person_name)}
+          </span>
+          <span class="status-pill ${app.status === 'realizada' ? 'status-concluido' : 'status-agendado'}">
+            ${app.status === 'realizada' ? 'Concluída' : 'Agendada'}
+          </span>
         </div>
 
         <div class="item-title">
@@ -718,42 +682,34 @@ const App = {
             📍 <strong>${this.escapeHtml(app.city)}</strong>
           </div>
           <div class="item-meta-item">
-            🏢 ${this.escapeHtml(app.location_name || 'Local a confirmar')}
+            🏢 ${this.escapeHtml(app.location_name || 'A confirmar')}
           </div>
         </div>
 
         ${app.notes ? `
-          <div style="font-size:0.86rem; color:var(--text-muted); background:#f8fafc; padding:0.5rem 0.75rem; border-radius:var(--radius-sm); margin:0.5rem 0;">
+          <div style="font-size:0.82rem; color:var(--text-muted); background:#f8fafc; padding:0.4rem 0.6rem; border-radius:var(--radius-sm); margin:0.4rem 0;">
             📝 <em>${this.escapeHtml(app.notes)}</em>
           </div>
         ` : ''}
 
         ${app.exams_to_bring_count > 0 ? `
           <div class="bring-to-appointment-box">
-            <span style="font-size:1.3rem;">📋</span>
-            <div>
-              <strong>Lembrete importante:</strong> Há <strong>${app.exams_to_bring_count} exame(s)</strong> vinculados para levar nesta consulta!
-            </div>
+            <span>📋</span>
+            <div><strong>Atenção:</strong> Levar <strong>${app.exams_to_bring_count} exame(s)</strong> nesta consulta!</div>
           </div>
         ` : ''}
 
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid #f1f5f9; gap:0.5rem; flex-wrap:wrap;">
-          <div style="display:flex; gap:0.4rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.6rem; padding-top:0.6rem; border-top:1px solid #f1f5f9; gap:0.4rem; flex-wrap:wrap;">
+          <div style="display:flex; gap:0.35rem;">
             <button class="btn btn-sm btn-outline-primary" onclick="App.addExamForAppointment(${app.id}, ${app.person_id})">
-              + Pedir Exame
+              + Exame
             </button>
-            ${app.status !== 'realizada' ? `
-              <button class="btn btn-sm btn-secondary" onclick="App.toggleAppointmentStatus(${app.id}, 'realizada')">
-                Marcar como Realizada
-              </button>
-            ` : `
-              <button class="btn btn-sm btn-secondary" onclick="App.toggleAppointmentStatus(${app.id}, 'agendada')">
-                Reabrir
-              </button>
-            `}
+            <button class="btn btn-sm btn-secondary" onclick="App.toggleAppointmentStatus(${app.id}, '${app.status === 'realizada' ? 'agendada' : 'realizada'}')">
+              ${app.status === 'realizada' ? 'Reabrir' : 'Realizada'}
+            </button>
           </div>
 
-          <div style="display:flex; gap:0.4rem;">
+          <div style="display:flex; gap:0.35rem;">
             <button class="btn btn-sm btn-secondary" onclick="App.editAppointment(${app.id})">Editar</button>
             <button class="btn btn-sm btn-secondary" style="color:var(--danger);" onclick="App.deleteAppointment(${app.id})">Excluir</button>
           </div>
@@ -772,20 +728,16 @@ const App = {
     }
 
     let html = `
-      <div id="family-filter-container" class="family-filter-bar"></div>
+      ${this.getFilterSelectHtml()}
 
       <div class="action-bar">
         <div class="action-bar-title">
-          <span>🔬 Controle de Exames & Retornos</span>
+          <span>🔬 Exames & Retornos</span>
           <span class="status-pill status-agendado">${list.length}</span>
         </div>
-        <button class="btn btn-primary" onclick="App.openModal('modal-exam')">
+        <button class="btn btn-sm btn-primary" onclick="App.openModal('modal-exam')">
           <span>+ Novo Exame</span>
         </button>
-      </div>
-
-      <div style="background:#eff6ff; border:1px solid #bfdbfe; padding:0.85rem 1.25rem; border-radius:var(--radius-md); margin-bottom:1.25rem; font-size:0.88rem; color:#1e3a8a;">
-        💡 <strong>Dica:</strong> Quando o resultado ficar pronto, selecione a <strong>Consulta de Retorno</strong>. O sistema lembrará você de levar o laudo no dia da consulta!
       </div>
     `;
 
@@ -794,16 +746,16 @@ const App = {
         <div class="empty-state">
           <div class="empty-state-icon">🔬</div>
           <h3>Nenhum exame cadastrado</h3>
-          <p>Cadastre os exames solicitados pelos médicos.</p>
+          <p>Cadastre os exames pedidos pelos médicos.</p>
         </div>
       `;
     } else {
-      html += `<div style="display:flex; flex-direction:column; gap:0.75rem;">`;
+      html += `<div style="display:flex; flex-direction:column; gap:0.6rem;">`;
       list.forEach(ex => {
         let statusBadge = '';
         switch (ex.status) {
           case 'a_agendar':
-            statusBadge = '<span class="status-pill status-a-agendar">🟡 Precisa Agendar</span>';
+            statusBadge = '<span class="status-pill status-a-agendar">🟡 A Agendar</span>';
             break;
           case 'agendado':
             statusBadge = '<span class="status-pill status-agendado">🔵 Agendado</span>';
@@ -812,7 +764,7 @@ const App = {
             statusBadge = '<span class="status-pill status-aguardando">🟣 Aguardando Resultado</span>';
             break;
           case 'pronto_levar':
-            statusBadge = '<span class="status-pill status-pronto">🟢 PRONTO P/ LEVAR NO RETORNO!</span>';
+            statusBadge = '<span class="status-pill status-pronto">🟢 PRONTO P/ LEVAR!</span>';
             break;
           case 'concluido':
             statusBadge = '<span class="status-pill status-concluido">⚪ Concluído</span>';
@@ -822,17 +774,13 @@ const App = {
         html += `
           <div class="item-card">
             <div class="item-card-header">
-              <div>
-                <span class="person-badge" style="background-color: ${ex.person_color};">
-                  👤 ${this.escapeHtml(ex.person_name)}
-                </span>
-              </div>
+              <span class="person-badge" style="background-color: ${ex.person_color};">
+                👤 ${this.escapeHtml(ex.person_name)}
+              </span>
               <div>${statusBadge}</div>
             </div>
 
-            <div class="item-title">
-              ${this.escapeHtml(ex.exam_name)}
-            </div>
+            <div class="item-title">${this.escapeHtml(ex.exam_name)}</div>
 
             <div class="item-meta-grid">
               <div class="item-meta-item">
@@ -851,29 +799,29 @@ const App = {
 
             <!-- Vínculo com a Consulta de Retorno -->
             <div class="bring-to-appointment-box" style="${ex.status === 'pronto_levar' ? 'background:#ecfdf5; border-color:#86efac; color:#065f46;' : ''}">
-              <span style="font-size:1.3rem;">🎯</span>
+              <span>🎯</span>
               <div>
                 ${ex.target_appointment_id ? `
-                  <span>Levar na consulta de retorno com: <strong>${this.escapeHtml(ex.target_doctor_name || ex.target_specialty)}</strong> em <strong>${this.formatDate(ex.target_appointment_date)}</strong> (${this.escapeHtml(ex.target_city || '')})</span>
+                  <span>Levar no retorno com: <strong>${this.escapeHtml(ex.target_doctor_name || ex.target_specialty)}</strong> em <strong>${this.formatDate(ex.target_appointment_date)}</strong></span>
                 ` : `
-                  <span style="color:#64748b;">Nenhuma consulta de retorno vinculada ainda. <a href="javascript:void(0)" onclick="App.editExam(${ex.id})" style="color:var(--primary); font-weight:700;">Vincular agora</a></span>
+                  <span style="color:#64748b;">Nenhuma consulta de retorno vinculada. <a href="javascript:void(0)" onclick="App.editExam(${ex.id})" style="color:var(--primary); font-weight:800;">Vincular</a></span>
                 `}
               </div>
             </div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid #f1f5f9; gap:0.5rem; flex-wrap:wrap;">
-              <div style="display:flex; align-items:center; gap:0.4rem;">
-                <label style="font-size:0.82rem; font-weight:700; color:var(--text-muted);">Mudar Status:</label>
-                <select class="form-control" style="width:auto; padding:0.35rem 0.6rem; font-size:0.82rem;" onchange="App.updateExamStatus(${ex.id}, this.value)">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.6rem; padding-top:0.6rem; border-top:1px solid #f1f5f9; gap:0.4rem; flex-wrap:wrap;">
+              <div style="display:flex; align-items:center; gap:0.35rem;">
+                <label style="font-size:0.75rem; font-weight:800; color:var(--text-muted);">Status:</label>
+                <select class="form-control" style="width:auto; padding:0.25rem 0.5rem; font-size:0.78rem;" onchange="App.updateExamStatus(${ex.id}, this.value)">
                   <option value="a_agendar" ${ex.status === 'a_agendar' ? 'selected' : ''}>A Agendar</option>
                   <option value="agendado" ${ex.status === 'agendado' ? 'selected' : ''}>Agendado</option>
                   <option value="feito_aguardando" ${ex.status === 'feito_aguardando' ? 'selected' : ''}>Aguardando Resultado</option>
-                  <option value="pronto_levar" ${ex.status === 'pronto_levar' ? 'selected' : ''}>Pronto para Levar</option>
+                  <option value="pronto_levar" ${ex.status === 'pronto_levar' ? 'selected' : ''}>Pronto p/ Levar</option>
                   <option value="concluido" ${ex.status === 'concluido' ? 'selected' : ''}>Concluído</option>
                 </select>
               </div>
 
-              <div style="display:flex; gap:0.4rem;">
+              <div style="display:flex; gap:0.35rem;">
                 <button class="btn btn-sm btn-secondary" onclick="App.editExam(${ex.id})">Editar</button>
                 <button class="btn btn-sm btn-secondary" style="color:var(--danger);" onclick="App.deleteExam(${ex.id})">Excluir</button>
               </div>
@@ -885,11 +833,10 @@ const App = {
     }
 
     container.innerHTML = html;
-    this.renderFamilyFilterBar();
   },
 
   /* =========================================================================
-     ABA 5: REMÉDIOS & FARMÁCIA
+     ABA 5: REMÉDIOS
      ========================================================================= */
   renderRemediosTab(container) {
     let list = this.state.medications;
@@ -901,15 +848,15 @@ const App = {
     const stockOk = list.filter(m => m.needs_purchase == 0);
 
     let html = `
-      <div id="family-filter-container" class="family-filter-bar"></div>
+      ${this.getFilterSelectHtml()}
 
       <div class="action-bar">
         <div class="action-bar-title">
-          <span>💊 Remédios & Farmácia</span>
-          ${needsPurchase.length > 0 ? `<span class="status-pill status-a-agendar">⚠️ ${needsPurchase.length} para comprar</span>` : ''}
+          <span>💊 Remédios</span>
+          ${needsPurchase.length > 0 ? `<span class="status-pill status-a-agendar">⚠️ ${needsPurchase.length} a comprar</span>` : ''}
         </div>
-        <button class="btn btn-primary" onclick="App.openModal('modal-medication')">
-          <span>+ Cadastrar Remédio</span>
+        <button class="btn btn-sm btn-primary" onclick="App.openModal('modal-medication')">
+          <span>+ Cadastrar</span>
         </button>
       </div>
     `;
@@ -919,15 +866,15 @@ const App = {
         <div class="empty-state">
           <div class="empty-state-icon">💊</div>
           <h3>Nenhum remédio cadastrado</h3>
-          <p>Adicione os remédios de cada um.</p>
+          <p>Adicione os remédios de cada pessoa.</p>
         </div>
       `;
     } else {
       if (needsPurchase.length > 0) {
         html += `
-          <div style="margin-bottom:1.5rem;">
-            <h3 style="font-size:1.1rem; font-weight:800; color:#b45309; margin-bottom:0.75rem; display:flex; align-items:center; gap:0.5rem;">
-              <span>🛒 Lista de Compras / Falta Comprar (${needsPurchase.length})</span>
+          <div style="margin-bottom:1.25rem;">
+            <h3 style="font-size:1rem; font-weight:800; color:#b45309; margin-bottom:0.5rem;">
+              🛒 Falta Comprar (${needsPurchase.length})
             </h3>
             <div style="display:flex; flex-direction:column; gap:0.5rem;">
               ${needsPurchase.map(m => this.getMedicationRowHtml(m)).join('')}
@@ -939,8 +886,8 @@ const App = {
       if (stockOk.length > 0) {
         html += `
           <div>
-            <h3 style="font-size:1.1rem; font-weight:800; color:var(--text-main); margin-bottom:0.75rem;">
-              <span>✅ Remédios em Dia (${stockOk.length})</span>
+            <h3 style="font-size:1rem; font-weight:800; color:var(--text-main); margin-bottom:0.5rem;">
+              ✅ Em Dia (${stockOk.length})
             </h3>
             <div style="display:flex; flex-direction:column; gap:0.5rem;">
               ${stockOk.map(m => this.getMedicationRowHtml(m)).join('')}
@@ -951,7 +898,6 @@ const App = {
     }
 
     container.innerHTML = html;
-    this.renderFamilyFilterBar();
   },
 
   getMedicationRowHtml(m) {
@@ -964,18 +910,17 @@ const App = {
               👤 ${this.escapeHtml(m.person_name)}
             </span>
             <span>${this.escapeHtml(m.name)}</span>
-            <span style="font-size:0.8rem; font-weight:500; color:var(--text-muted);">(${this.escapeHtml(m.dosage || 'Dosagem padrão')})</span>
+            <span style="font-size:0.75rem; font-weight:500; color:var(--text-muted);">(${this.escapeHtml(m.dosage || 'Dosagem padrão')})</span>
           </h4>
           <div class="med-details">
             ⏰ <em>${this.escapeHtml(m.instructions || 'Conforme receita')}</em>
             ${m.preferred_city ? ` • 📍 Comprar em: <strong>${this.escapeHtml(m.preferred_city)}</strong>` : ''}
-            ${m.notes ? ` • 📝 ${this.escapeHtml(m.notes)}` : ''}
           </div>
         </div>
 
-        <div style="display:flex; align-items:center; gap:0.6rem;">
+        <div style="display:flex; justify-content:flex-end; align-items:center; gap:0.4rem;">
           <button class="btn btn-sm ${isBuy ? 'btn-success' : 'btn-secondary'}" onclick="App.toggleMedPurchase(${m.id}, ${isBuy ? 0 : 1})">
-            ${isBuy ? '✓ Marcar como Comprado' : '🛒 Marcar p/ Comprar'}
+            ${isBuy ? '✓ Já Comprei' : '🛒 Preciso Comprar'}
           </button>
           <button class="btn btn-sm btn-secondary" onclick="App.editMedication(${m.id})">Editar</button>
           <button class="btn btn-sm btn-secondary" style="color:var(--danger);" onclick="App.deleteMedication(${m.id})">Excluir</button>
@@ -985,25 +930,20 @@ const App = {
   },
 
   /* =========================================================================
-     ABA 6: PESSOAS GERENCIADAS (SEM DESCRIÇÕES REDUNDANTES)
+     ABA 6: PESSOAS CADASTRADAS (SOMENTE AS 6 FIXAS, SEM BOTÃO DE CADASTRO)
      ========================================================================= */
-  renderFamiliaresTab(container) {
+  renderPessoasTab(container) {
     let html = `
       <div class="action-bar">
         <div class="action-bar-title">
-          <span>👥 Pessoas Cadastradas</span>
+          <span>👥 As 6 Pessoas da Família</span>
         </div>
-        <div class="action-buttons-group">
-          <button class="btn btn-primary" onclick="App.openModal('modal-person')">
-            <span>+ Adicionar Pessoa</span>
-          </button>
-          <button class="btn btn-secondary" onclick="App.exportBackup()">
-            <span>💾 Baixar Cópia de Segurança</span>
-          </button>
-        </div>
+        <button class="btn btn-sm btn-secondary" onclick="App.exportBackup()">
+          <span>💾 Backup</span>
+        </button>
       </div>
 
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1rem;">
+      <div style="display:grid; grid-template-columns:1fr; gap:0.75rem;">
     `;
 
     this.state.persons.forEach(p => {
@@ -1012,62 +952,51 @@ const App = {
       const pMeds = this.state.medications.filter(m => m.person_id == p.id);
 
       html += `
-        <div class="item-card" style="border-top: 4px solid ${p.color};">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+        <div class="item-card" style="border-left: 5px solid ${p.color};">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
             <div style="display:flex; align-items:center; gap:0.5rem;">
-              <div style="width:36px; height:36px; border-radius:50%; background-color:${p.color}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:1.1rem;">
+              <div style="width:34px; height:34px; border-radius:50%; background-color:${p.color}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:1.05rem;">
                 ${p.name.charAt(0)}
               </div>
-              <div>
-                <h4 style="font-size:1.15rem; font-weight:800; color:var(--text-main); margin:0;">
-                  ${this.escapeHtml(p.name)}
-                </h4>
-              </div>
+              <h4 style="font-size:1.1rem; font-weight:800; color:var(--text-main); margin:0;">
+                ${this.escapeHtml(p.name)}
+              </h4>
             </div>
+
+            <button class="btn btn-sm btn-outline-primary" onclick="App.filterAndGo('${p.id}')">
+              Ver Agenda
+            </button>
           </div>
 
-          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.5rem; text-align:center; background:#f8fafc; padding:0.6rem; border-radius:var(--radius-sm); margin-bottom:1rem; font-size:0.82rem;">
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.4rem; text-align:center; background:#f8fafc; padding:0.5rem; border-radius:var(--radius-sm); font-size:0.78rem;">
             <div>
-              <strong style="display:block; font-size:1.1rem; color:var(--text-main);">${pApps.length}</strong>
+              <strong style="display:block; font-size:1rem; color:var(--text-main);">${pApps.length}</strong>
               <span style="color:var(--text-muted);">Consultas</span>
             </div>
             <div>
-              <strong style="display:block; font-size:1.1rem; color:var(--text-main);">${pExams.length}</strong>
+              <strong style="display:block; font-size:1rem; color:var(--text-main);">${pExams.length}</strong>
               <span style="color:var(--text-muted);">Exames</span>
             </div>
             <div>
-              <strong style="display:block; font-size:1.1rem; color:var(--text-main);">${pMeds.length}</strong>
+              <strong style="display:block; font-size:1rem; color:var(--text-main);">${pMeds.length}</strong>
               <span style="color:var(--text-muted);">Remédios</span>
             </div>
-          </div>
-
-          <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
-            <button class="btn btn-sm btn-secondary" onclick="App.editPerson(${p.id})">Editar</button>
-            <button class="btn btn-sm btn-secondary" style="color:var(--danger);" onclick="App.deletePerson(${p.id})">Excluir</button>
           </div>
         </div>
       `;
     });
 
-    html += `
-      </div>
-
-      <div style="margin-top:2.5rem; background:#ffffff; border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:1.5rem;">
-        <h4 style="font-size:1.05rem; font-weight:800; margin-bottom:0.5rem;">🧪 Precisa de Demonstração?</h4>
-        <p style="font-size:0.88rem; color:var(--text-muted); margin-bottom:1rem;">
-          Você pode recarregar os exemplos com compromissos em Campinas para demonstrar a carona e logística.
-        </p>
-        <button class="btn btn-sm btn-outline-primary" onclick="App.seedSamples(false)">
-          Recarregar Dados de Exemplo
-        </button>
-      </div>
-    `;
-
+    html += `</div>`;
     container.innerHTML = html;
   },
 
+  filterAndGo(personId) {
+    this.state.selectedFamilyFilter = personId;
+    this.switchTab('consultas');
+  },
+
   /* =========================================================================
-     POPULAR SELECTS & HELPERS (SEM REDUNDÂNCIAS)
+     POPULAR SELECTS & HELPERS
      ========================================================================= */
   populatePersonSelects() {
     const selects = ['app-person-id', 'exam-person-id', 'med-person-id'];
@@ -1103,7 +1032,11 @@ const App = {
     document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
   },
 
-  // Operações de Consulta
+  openNewSheet() {
+    this.openModal('modal-quick-new');
+  },
+
+  // Consulta
   async saveAppointmentForm(e) {
     e.preventDefault();
     const id = document.getElementById('app-id').value;
@@ -1121,7 +1054,7 @@ const App = {
     };
 
     if (!data.person_id || !data.specialty || !data.city || !data.appointment_date) {
-      this.showToast('Por favor, preencha os campos obrigatórios.', 'danger');
+      this.showToast('Preencha os campos obrigatórios.', 'danger');
       return;
     }
 
@@ -1132,7 +1065,7 @@ const App = {
       else db.appointments.push(data);
       this.localDB.save(db);
       this.closeAllModals();
-      this.showToast('Consulta salva com sucesso!', 'success');
+      this.showToast('Consulta salva!', 'success');
       document.getElementById('form-appointment').reset();
       document.getElementById('app-id').value = '';
       await this.loadData();
@@ -1148,7 +1081,7 @@ const App = {
       const result = await res.json();
       if (result.success) {
         this.closeAllModals();
-        this.showToast('Consulta salva com sucesso!', 'success');
+        this.showToast('Consulta salva!', 'success');
         document.getElementById('form-appointment').reset();
         document.getElementById('app-id').value = '';
         await this.loadData();
@@ -1176,7 +1109,7 @@ const App = {
   },
 
   async deleteAppointment(id) {
-    if (!confirm('Deseja realmente excluir esta consulta?')) return;
+    if (!confirm('Deseja excluir esta consulta?')) return;
     if (this.useLocalDB) {
       const db = this.localDB.get();
       db.appointments = db.appointments.filter(a => a.id != id);
@@ -1221,7 +1154,7 @@ const App = {
     this.openModal('modal-exam');
   },
 
-  // Operações de Exame
+  // Exame
   async saveExamForm(e) {
     e.preventDefault();
     const id = document.getElementById('exam-id').value;
@@ -1239,7 +1172,7 @@ const App = {
     };
 
     if (!data.person_id || !data.exam_name) {
-      this.showToast('Preencha a pessoa e o nome do exame.', 'danger');
+      this.showToast('Preencha a pessoa e o exame.', 'danger');
       return;
     }
 
@@ -1250,7 +1183,7 @@ const App = {
       else db.exams.push(data);
       this.localDB.save(db);
       this.closeAllModals();
-      this.showToast('Exame salvo com sucesso!', 'success');
+      this.showToast('Exame salvo!', 'success');
       document.getElementById('form-exam').reset();
       document.getElementById('exam-id').value = '';
       await this.loadData();
@@ -1266,7 +1199,7 @@ const App = {
       const result = await res.json();
       if (result.success) {
         this.closeAllModals();
-        this.showToast('Exame salvo com sucesso!', 'success');
+        this.showToast('Exame salvo!', 'success');
         document.getElementById('form-exam').reset();
         document.getElementById('exam-id').value = '';
         await this.loadData();
@@ -1298,7 +1231,7 @@ const App = {
       const ex = db.exams.find(e => e.id == id);
       if (ex) ex.status = newStatus;
       this.localDB.save(db);
-      this.showToast('Status do exame atualizado!', 'success');
+      this.showToast('Status atualizado!', 'success');
       await this.loadData();
       return;
     }
@@ -1307,7 +1240,7 @@ const App = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status: newStatus })
     });
-    this.showToast('Status do exame atualizado!', 'success');
+    this.showToast('Status atualizado!', 'success');
     await this.loadData();
   },
 
@@ -1334,7 +1267,7 @@ const App = {
     await this.loadData();
   },
 
-  // Operações de Remédio
+  // Remédios
   async saveMedicationForm(e) {
     e.preventDefault();
     const id = document.getElementById('med-id').value;
@@ -1361,7 +1294,7 @@ const App = {
       else db.medications.push(data);
       this.localDB.save(db);
       this.closeAllModals();
-      this.showToast('Remédio salvo com sucesso!', 'success');
+      this.showToast('Remédio salvo!', 'success');
       document.getElementById('form-medication').reset();
       document.getElementById('med-id').value = '';
       await this.loadData();
@@ -1377,7 +1310,7 @@ const App = {
       const result = await res.json();
       if (result.success) {
         this.closeAllModals();
-        this.showToast('Remédio salvo com sucesso!', 'success');
+        this.showToast('Remédio salvo!', 'success');
         document.getElementById('form-medication').reset();
         document.getElementById('med-id').value = '';
         await this.loadData();
@@ -1407,7 +1340,7 @@ const App = {
       const m = db.medications.find(item => item.id == id);
       if (m) m.needs_purchase = needs;
       this.localDB.save(db);
-      this.showToast(needs ? 'Marcado para comprar na próxima saída!' : 'Remédio marcado como comprado.', 'success');
+      this.showToast(needs ? 'Marcado para comprar!' : 'Remédio marcado como comprado.', 'success');
       await this.loadData();
       return;
     }
@@ -1416,7 +1349,7 @@ const App = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, needs_purchase: needs })
     });
-    this.showToast(needs ? 'Marcado para comprar na próxima saída!' : 'Remédio marcado como comprado.', 'success');
+    this.showToast(needs ? 'Marcado para comprar!' : 'Remédio marcado como comprado.', 'success');
     await this.loadData();
   },
 
@@ -1439,145 +1372,6 @@ const App = {
     await this.loadData();
   },
 
-  // Operações de Pessoa
-  async savePersonForm(e) {
-    e.preventDefault();
-    const id = document.getElementById('person-id').value;
-    const data = {
-      id: id ? parseInt(id, 10) : (this.useLocalDB ? Date.now() : null),
-      name: document.getElementById('person-name').value.trim(),
-      relation: '',
-      color: document.getElementById('person-color').value,
-      notes: document.getElementById('person-notes').value.trim()
-    };
-
-    if (!data.name) {
-      this.showToast('Nome é obrigatório.', 'danger');
-      return;
-    }
-
-    if (this.useLocalDB) {
-      const db = this.localDB.get();
-      const idx = db.persons.findIndex(p => p.id == data.id);
-      if (idx >= 0) db.persons[idx] = data;
-      else db.persons.push(data);
-      this.localDB.save(db);
-      this.closeAllModals();
-      this.showToast('Pessoa salva com sucesso!', 'success');
-      document.getElementById('form-person').reset();
-      document.getElementById('person-id').value = '';
-      await this.loadData();
-      return;
-    }
-
-    try {
-      const res = await fetch(this.apiUrl('save_person'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      const result = await res.json();
-      if (result.success) {
-        this.closeAllModals();
-        this.showToast('Pessoa salva com sucesso!', 'success');
-        document.getElementById('form-person').reset();
-        document.getElementById('person-id').value = '';
-        await this.loadData();
-      }
-    } catch (err) {
-      this.showToast('Erro ao salvar pessoa.', 'danger');
-    }
-  },
-
-  editPerson(id) {
-    const p = this.state.persons.find(item => item.id == id);
-    if (!p) return;
-    document.getElementById('person-id').value = p.id;
-    document.getElementById('person-name').value = p.name;
-    document.getElementById('person-color').value = p.color;
-    document.getElementById('person-notes').value = p.notes || '';
-    this.openModal('modal-person');
-  },
-
-  async deletePerson(id) {
-    if (!confirm('Deseja excluir esta pessoa e todos os seus registros?')) return;
-    if (this.useLocalDB) {
-      const db = this.localDB.get();
-      db.persons = db.persons.filter(p => p.id != id);
-      db.appointments = db.appointments.filter(a => a.person_id != id);
-      db.exams = db.exams.filter(e => e.person_id != id);
-      db.medications = db.medications.filter(m => m.person_id != id);
-      this.localDB.save(db);
-      this.showToast('Pessoa excluída.', 'success');
-      await this.loadData();
-      return;
-    }
-    await fetch(this.apiUrl('delete_person'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id })
-    });
-    this.showToast('Pessoa excluída.', 'success');
-    await this.loadData();
-  },
-
-  // Recarregar Dados Demonstrativos
-  async seedSamples(silent = false) {
-    if (this.useLocalDB) {
-      const date1 = new Date();
-      date1.setDate(date1.getDate() + 3);
-      const strDate1 = date1.toISOString().split('T')[0];
-
-      const date2 = new Date();
-      date2.setDate(date2.getDate() + 10);
-      const strDate2 = date2.toISOString().split('T')[0];
-
-      const db = {
-        persons: [
-          { id: 1, name: 'Ednéia', relation: '', color: '#8b5cf6', notes: '' },
-          { id: 2, name: 'Mãe', relation: '', color: '#ec4899', notes: '' },
-          { id: 3, name: 'Edyr', relation: '', color: '#2563eb', notes: '' },
-          { id: 4, name: 'Carlos Romeu', relation: '', color: '#059669', notes: '' },
-          { id: 5, name: 'Rogério', relation: '', color: '#ea580c', notes: '' },
-          { id: 6, name: 'Tia Mariazinha', relation: '', color: '#0891b2', notes: '' }
-        ],
-        appointments: [
-          { id: 101, person_id: 1, specialty: 'Ginecologia / Rotina', doctor_name: 'Dra. Camila Castro', city: 'Campinas', location_name: 'Clínica Saúde Mulher', appointment_date: strDate1, appointment_time: '14:00', status: 'agendada', notes: 'Levar exames anteriores' },
-          { id: 102, person_id: 1, specialty: 'Cardiologista (Retorno)', doctor_name: 'Dr. Roberto Mendes', city: 'Campinas', location_name: 'Hospital Vera Cruz', appointment_date: strDate2, appointment_time: '10:30', status: 'agendada', notes: 'Mostrar ecocardiograma' },
-          { id: 103, person_id: 2, specialty: 'Geriatra', doctor_name: 'Dr. Marcos Silveira', city: 'Campinas', location_name: 'Centro Médico Integrado', appointment_date: strDate1, appointment_time: '15:30', status: 'agendada', notes: 'Acompanhar com lista de remédios' },
-          { id: 104, person_id: 3, specialty: 'Ortopedista', doctor_name: 'Dr. Fernando Lira', city: 'Campinas', location_name: 'Clínica OrtoCenter', appointment_date: strDate2, appointment_time: '11:15', status: 'agendada', notes: 'Avaliação do joelho' },
-          { id: 105, person_id: 4, specialty: 'Oftalmologista', doctor_name: 'Dr. Arnaldo Dias', city: 'Campinas', location_name: 'Instituto dos Olhos', appointment_date: strDate2, appointment_time: '09:00', status: 'agendada', notes: 'Exame de fundo de olho' }
-        ],
-        exams: [
-          { id: 201, person_id: 1, exam_name: 'Ecocardiograma com Doppler', target_appointment_id: 102, exam_date: strDate1, exam_time: '10:00', location_name: 'EcoLab', city: 'Campinas', status: 'agendado', result_notes: '' },
-          { id: 202, person_id: 3, exam_name: 'Exame de Sangue em Jejum (Glicemia, Colesterol)', target_appointment_id: null, exam_date: strDate1, exam_time: '08:30', location_name: 'Laboratório Pasteur', city: 'Campinas', status: 'agendado', result_notes: 'Jejum de 10h' },
-          { id: 203, person_id: 2, exam_name: 'Densitometria Óssea', target_appointment_id: null, exam_date: null, exam_time: null, location_name: '', city: 'Campinas', status: 'a_agendar', result_notes: 'Médico pediu na última consulta' }
-        ],
-        medications: [
-          { id: 301, person_id: 6, name: 'Losartana Potássica 50mg', dosage: '1 comprimido', instructions: 'Tomar ao acordar', preferred_city: 'Campinas', needs_purchase: 1, notes: 'Farmácia Popular' },
-          { id: 302, person_id: 5, name: 'AAS Infantil 100mg', dosage: '1 comprimido', instructions: 'Após almoço', preferred_city: 'Campinas', needs_purchase: 1, notes: 'Caixa com 60' },
-          { id: 303, person_id: 6, name: 'Omeprazol 20mg', dosage: '1 cápsula', instructions: 'Em jejum', preferred_city: 'Campinas', needs_purchase: 0, notes: 'Estoque OK' }
-        ]
-      };
-      this.localDB.save(db);
-      await this.loadData();
-      if (!silent) this.showToast('Exemplos práticos carregados!', 'success');
-      return;
-    }
-
-    try {
-      const res = await fetch(this.apiUrl('seed_samples'));
-      const data = await res.json();
-      if (data.success) {
-        await this.loadData();
-        if (!silent) this.showToast('Exemplos de consultas, exames e carona carregados!', 'success');
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  },
-
-  // Exportar Backup
   exportBackup() {
     let backupData = {};
     if (this.useLocalDB) {
@@ -1595,7 +1389,7 @@ const App = {
     a.download = `backup_sem_perder_a_data_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    this.showToast('Backup baixado com sucesso!', 'success');
+    this.showToast('Backup baixado!', 'success');
   },
 
   formatDate(dateStr) {
@@ -1627,7 +1421,7 @@ const App = {
     toast.className = 'toast show';
     setTimeout(() => {
       toast.className = 'toast';
-    }, 3500);
+    }, 3200);
   }
 };
 

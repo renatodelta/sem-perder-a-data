@@ -1,13 +1,13 @@
 {
   "name": "Sem Perder a Data",
-  "short_name": "Sem Perder a Data",
-  "description": "Gestão de Saúde, Consultas, Exames, Remédios e Carona Familiar para Ednéia",
-  "start_url": "./index.html",
+  "short_name": "Sem Perder",
+  "description": "Gestão de Saúde, Consultas, Exames, Remédios e Viagens da Ednéia",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f8fafc",
+  "background_color": "#0d9488",
   "theme_color": "#0d9488",
-  "orientation": "portrait-primary",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "assets/icons/icon-192.png",

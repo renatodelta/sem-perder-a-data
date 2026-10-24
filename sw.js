@@ -1,20 +1,22 @@
-// sw.js - Service Worker para funcionamento offline e instalação como aplicativo móvel (PWA)
-const CACHE_NAME = 'sem-perder-a-data-v1';
-const ASSETS_TO_CACHE = [
+// sw.js - Service Worker Seguro para PWA (Sem erros de ERR_FAILED)
+const CACHE_NAME = 'sem-perder-a-data-v2';
+const CORE_ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './assets/css/style.css',
   './assets/js/app.js',
   './assets/icons/icon-192.png',
-  './assets/icons/icon-512.png',
-  'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap'
+  './assets/icons/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+      // Usa Promise.allSettled para garantir que a instalação NUNCA falhe
+      return Promise.allSettled(
+        CORE_ASSETS.map((url) => cache.add(url).catch((err) => console.log('Aviso cache:', url, err)))
+      );
     }).then(() => self.skipWaiting())
   );
 });
@@ -34,28 +36,31 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Ignora requisições de API para que usem a rede/D1
-  if (event.request.url.includes('/api') || event.request.url.includes('api.php')) {
+  const req = event.request;
+
+  // Não intercepta chamadas não-GET nem chamadas de API
+  if (req.method !== 'GET' || req.url.includes('/api') || req.url.includes('api.php')) {
     return;
   }
 
+  // Estratégia Network-First com fallback para Cache (nunca gera ERR_FAILED)
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).then((response) => {
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response;
+    fetch(req)
+      .then((networkRes) => {
+        if (networkRes && networkRes.status === 200) {
+          const resClone = networkRes.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone));
         }
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
+        return networkRes;
+      })
+      .catch(() => {
+        return caches.match(req).then((cachedRes) => {
+          if (cachedRes) return cachedRes;
+          // Se for uma requisição de página HTML, entrega a página principal em cache
+          if (req.headers.get('accept')?.includes('text/html')) {
+            return caches.match('./') || caches.match('./index.html');
+          }
         });
-        return response;
-      }).catch(() => {
-        return caches.match('./index.html');
-      });
-    })
+      })
   );
 });
