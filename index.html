@@ -3,8 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Sem Perder a Data - Gestão de Saúde & Logística Familiar</title>
-  <meta name="description" content="Aplicativo da Ednéia para organização de consultas, exames vinculados a retornos, remédios e logística de caronas compartilhadas para toda a família.">
+  <title>Sem Perder a Data - Gestão de Saúde & Logística</title>
+  <meta name="description" content="Aplicativo da Ednéia para organização de consultas, exames vinculados a retornos, remédios e logística de caronas compartilhadas.">
+  
+  <!-- Configurações para Instalação como Aplicativo no Celular (PWA) -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d9488">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Sem Perder a Data">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
   
   <!-- Tipografia Moderna Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,15 +33,20 @@
         <div class="logo-icon">🩺</div>
         <div class="logo-text">
           <h1>Sem Perder a Data</h1>
-          <p>Cuidado e Saúde da Família • Painel da Ednéia</p>
+          <p>Painel de Saúde e Logística • Ednéia</p>
         </div>
       </div>
       
       <div class="header-actions">
-        <button class="btn btn-sm btn-secondary" onclick="App.openModal('modal-appointment')" style="background: rgba(255,255,255,0.9);">
+        <!-- Botão especial para Ednéia instalar no celular com 1 toque -->
+        <button class="btn btn-sm btn-install-pwa" onclick="App.promptInstall()" style="display:none; background:#f59e0b; color:#ffffff; font-weight:800; border:none; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+          <span>📲 Instalar no Celular</span>
+        </button>
+
+        <button class="btn btn-sm btn-secondary" onclick="App.openModal('modal-appointment')" style="background: rgba(255,255,255,0.95);">
           <span>+ Nova Consulta</span>
         </button>
-        <button class="btn btn-sm btn-secondary" onclick="App.openModal('modal-exam')" style="background: rgba(255,255,255,0.9);">
+        <button class="btn btn-sm btn-secondary" onclick="App.openModal('modal-exam')" style="background: rgba(255,255,255,0.95);">
           <span>+ Novo Exame</span>
         </button>
       </div>
@@ -42,7 +57,7 @@
   <nav class="tabs-nav-bar">
     <div class="tabs-container">
       <button class="nav-tab-btn active" data-tab="logistica" id="tab-nav-logistica">
-        <span>🚗 Logística & Carona</span>
+        <span>🚗 Viagens & Carona</span>
         <span class="nav-tab-badge" id="badge-trips">0</span>
       </button>
 
@@ -66,7 +81,7 @@
       </button>
 
       <button class="nav-tab-btn" data-tab="familiares" id="tab-nav-familiares">
-        <span>👥 Familiares</span>
+        <span>👥 Pessoas</span>
       </button>
     </div>
   </nav>
@@ -91,14 +106,14 @@
         <input type="hidden" id="app-id">
         <div class="modal-body">
           <div class="form-group">
-            <label class="form-label">Quem vai na consulta? <span class="req">*</span></label>
+            <label class="form-label">Para quem é a consulta? <span class="req">*</span></label>
             <select id="app-person-id" class="form-control" required></select>
           </div>
 
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Especialidade <span class="req">*</span></label>
-              <input type="text" id="app-specialty" class="form-control" placeholder="Ex: Cardiologia, Oftalmologia, Geriatra" required>
+              <input type="text" id="app-specialty" class="form-control" placeholder="Ex: Cardiologia, Oftalmologia, Geriatria" required>
             </div>
             <div class="form-group">
               <label class="form-label">Nome do Médico (Opcional)</label>
@@ -109,11 +124,11 @@
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Cidade <span class="req">*</span></label>
-              <input type="text" id="app-city" class="form-control" placeholder="Ex: Campinas, São Paulo" required>
+              <input type="text" id="app-city" class="form-control" placeholder="Ex: Campinas" required>
             </div>
             <div class="form-group">
               <label class="form-label">Clínica / Hospital</label>
-              <input type="text" id="app-location" class="form-control" placeholder="Ex: Hospital Vera Cruz, Centro Médico">
+              <input type="text" id="app-location" class="form-control" placeholder="Ex: Hospital Vera Cruz">
             </div>
           </div>
 
@@ -130,7 +145,7 @@
 
           <div class="form-group">
             <label class="form-label">Anotações / Instruções</label>
-            <textarea id="app-notes" class="form-control" placeholder="Ex: Levar exames anteriores, chegar com 30min de antecedência..."></textarea>
+            <textarea id="app-notes" class="form-control" placeholder="Ex: Levar exames anteriores, chegar com antecedência..."></textarea>
           </div>
         </div>
         <div class="modal-footer">
@@ -160,11 +175,11 @@
 
           <div class="form-group">
             <label class="form-label">Nome do Exame <span class="req">*</span></label>
-            <input type="text" id="exam-name" class="form-control" placeholder="Ex: Hemograma Completo, Ecocardiograma, Ressonância" required>
+            <input type="text" id="exam-name" class="form-control" placeholder="Ex: Hemograma Completo, Ecocardiograma" required>
           </div>
 
           <div class="form-group" style="background:#eff6ff; padding:0.85rem; border-radius:var(--radius-md); border:1px solid #bfdbfe;">
-            <label class="form-label" style="color:#1e3a8a;">🎯 Em qual Consulta de Retorno levar o laudo?</label>
+            <label class="form-label" style="color:#1e3a8a;">🎯 Em qual Consulta de Retorno levar o resultado?</label>
             <select id="exam-target-appointment-id" class="form-control"></select>
             <small style="color:#3b82f6; display:block; margin-top:4px;">
               Assim que o laudo estiver pronto, ele aparecerá na data desta consulta para Ednéia não esquecer de levar!
@@ -206,7 +221,7 @@
 
           <div class="form-group">
             <label class="form-label">Preparo / Observações</label>
-            <textarea id="exam-notes" class="form-control" placeholder="Ex: Jejum de 12 horas, suspender remédio no dia anterior..."></textarea>
+            <textarea id="exam-notes" class="form-control" placeholder="Ex: Jejum de 12 horas, suspender remédio..."></textarea>
           </div>
         </div>
         <div class="modal-footer">
@@ -251,20 +266,20 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Cidade onde costuma comprar ou pegar (Opcional)</label>
-            <input type="text" id="med-city" class="form-control" placeholder="Ex: Campinas (Farmácia Popular ou Alto Custo)">
+            <label class="form-label">Cidade onde costuma comprar (Opcional)</label>
+            <input type="text" id="med-city" class="form-control" placeholder="Ex: Campinas (Farmácia Popular)">
           </div>
 
           <div class="form-group" style="background:#fef3c7; padding:0.85rem; border-radius:var(--radius-md); border:1px solid #fde68a;">
             <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; font-weight:700; color:#92400e;">
               <input type="checkbox" id="med-needs-purchase" style="width:18px; height:18px;">
-              <span>🛒 Precisa comprar / providenciar na próxima saída!</span>
+              <span>🛒 Precisa comprar na próxima saída!</span>
             </label>
           </div>
 
           <div class="form-group">
             <label class="form-label">Observações adicionais</label>
-            <textarea id="med-notes" class="form-control" placeholder="Ex: Pegar receita médica nova, comprar genérico..."></textarea>
+            <textarea id="med-notes" class="form-control" placeholder="Ex: Pegar receita médica nova..."></textarea>
           </div>
         </div>
         <div class="modal-footer">
@@ -276,41 +291,36 @@
   </div>
 
   <!-- =========================================================================
-       MODAL 4: NOVO / EDITAR FAMILIAR
+       MODAL 4: NOVO / EDITAR PESSOA (SEM CAMPOS REDUNDANTES)
        ========================================================================= -->
   <div class="modal-overlay" id="modal-person">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3 id="modal-person-title">Perfil do Familiar</h3>
+        <h3 id="modal-person-title">Cadastrar Pessoa</h3>
         <button class="modal-close-btn">&times;</button>
       </div>
       <form id="form-person" onsubmit="App.savePersonForm(event)">
         <input type="hidden" id="person-id">
         <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label">Nome <span class="req">*</span></label>
-            <input type="text" id="person-name" class="form-control" placeholder="Ex: Ednéia, Carlos Romeu" required>
-          </div>
-
           <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Grau de Parentesco / Relação</label>
-              <input type="text" id="person-relation" class="form-control" placeholder="Ex: Mãe, Irmão, Marido, Tia">
+            <div class="form-group" style="flex:2;">
+              <label class="form-label">Nome <span class="req">*</span></label>
+              <input type="text" id="person-name" class="form-control" placeholder="Ex: Ednéia, Mãe, Edyr..." required>
             </div>
-            <div class="form-group">
-              <label class="form-label">Cor de Identificação</label>
+            <div class="form-group" style="flex:1;">
+              <label class="form-label">Cor do Crachá</label>
               <input type="color" id="person-color" class="form-control" value="#2563eb" style="height:44px; padding:4px;">
             </div>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Observações / Cuidados Especiais</label>
-            <textarea id="person-notes" class="form-control" placeholder="Ex: Dificuldade de locomoção, alérgico a dipirona..."></textarea>
+            <label class="form-label">Observações / Cuidados Especiais (Opcional)</label>
+            <textarea id="person-notes" class="form-control" placeholder="Ex: Alergias, cuidados específicos..."></textarea>
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary btn-cancel-modal">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar Familiar</button>
+          <button type="submit" class="btn btn-primary">Salvar Pessoa</button>
         </div>
       </form>
     </div>

@@ -98,12 +98,12 @@ try {
 
     if ($total == 0) {
         $initialPersons = [
-            ['Ednéia', 'Ela mesma (Você)', '#8b5cf6', 'heart-pulse', 'Responsável pela família e pela própria saúde'],
-            ['Mãe', 'Mãe', '#ec4899', 'user-heart', 'Acompanhar em todas as consultas e exames'],
-            ['Edyr', 'Irmão', '#2563eb', 'user', 'Irmão'],
-            ['Carlos Romeu', 'Irmão', '#059669', 'user', 'Irmão'],
-            ['Rogério', 'Marido', '#ea580c', 'user', 'Marido'],
-            ['Tia Mariazinha', 'Tia', '#0891b2', 'user', 'Tia']
+            ['Ednéia', '', '#8b5cf6', 'heart-pulse', 'Ednéia'],
+            ['Mãe', '', '#ec4899', 'user-heart', 'Mãe'],
+            ['Edyr', '', '#2563eb', 'user', 'Edyr'],
+            ['Carlos Romeu', '', '#059669', 'user', 'Carlos Romeu'],
+            ['Rogério', '', '#ea580c', 'user', 'Rogério'],
+            ['Tia Mariazinha', '', '#0891b2', 'user', 'Tia Mariazinha']
         ];
 
         $insertStmt = $pdo->prepare("

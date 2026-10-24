@@ -1,7 +1,10 @@
 /**
  * Sem Perder a Data - JavaScript da Aplicação
- * Compatível com Cloudflare Pages + Cloudflare D1, Servidor Local (PHP/SQLite) e Modo Offline Seguro
+ * PWA Instalável no Celular da Ednéia
+ * Compatível com Cloudflare Pages + Cloudflare D1 e Armazenamento Local
  */
+
+let deferredInstallPrompt = null;
 
 const App = {
   apiEndpoint: 'api', // 'api' para Cloudflare D1, 'api.php' para XAMPP local
@@ -24,6 +27,7 @@ const App = {
 
   async init() {
     this.bindEvents();
+    this.setupPwaInstall();
 
     // 1º Tenta a API do Cloudflare Pages (functions/api.js com D1)
     try {
@@ -66,6 +70,43 @@ const App = {
     }
   },
 
+  setupPwaInstall() {
+    // Registro do Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js')
+        .then(() => console.log('✅ Service Worker PWA ativo'))
+        .catch(err => console.log('Aviso SW:', err));
+    }
+
+    // Captura o evento nativo de instalação no celular
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      const installBtns = document.querySelectorAll('.btn-install-pwa');
+      installBtns.forEach(btn => btn.style.display = 'inline-flex');
+    });
+
+    window.addEventListener('appinstalled', () => {
+      deferredInstallPrompt = null;
+      document.querySelectorAll('.btn-install-pwa').forEach(btn => btn.style.display = 'none');
+      this.showToast('Aplicativo instalado no seu celular com sucesso!', 'success');
+    });
+  },
+
+  async promptInstall() {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      const choice = await deferredInstallPrompt.userChoice;
+      if (choice.outcome === 'accepted') {
+        this.showToast('Instalando aplicativo...', 'info');
+      }
+      deferredInstallPrompt = null;
+    } else {
+      // Instrução caso esteja no iOS Safari ou navegador que não use beforeinstallprompt
+      alert('Para instalar no seu celular:\n\nNo Android (Chrome): Toque nos 3 pontinhos no canto superior e selecione "Instalar aplicativo" ou "Adicionar à tela inicial".\n\nNo iPhone (Safari): Toque no botão de Compartilhar (quadrado com seta para cima) e escolha "Adicionar à Tela de Início".');
+    }
+  },
+
   async processLoadedData(data) {
     this.state.persons = data.persons || [];
     this.state.appointments = data.appointments || [];
@@ -83,10 +124,10 @@ const App = {
   },
 
   /* =========================================================================
-     ADAPTADOR LOCALSTORAGE (FALLBACK SE D1 AINDA NÃO FOI VINCULADO)
+     ADAPTADOR LOCALSTORAGE (APENAS NOMES, SEM DESCRIÇÕES REDUNDANTES)
      ========================================================================= */
   localDB: {
-    STORAGE_KEY: 'sem_perder_a_data_db_v1',
+    STORAGE_KEY: 'sem_perder_a_data_db_v2',
 
     get() {
       const raw = localStorage.getItem(this.STORAGE_KEY);
@@ -103,12 +144,12 @@ const App = {
       if (!data) {
         data = {
           persons: [
-            { id: 1, name: 'Ednéia', relation: 'Ela mesma (Você)', color: '#8b5cf6', notes: 'Responsável pela família e pela própria saúde' },
-            { id: 2, name: 'Mãe', relation: 'Mãe', color: '#ec4899', notes: 'Acompanhar em todas as consultas e exames' },
-            { id: 3, name: 'Edyr', relation: 'Irmão', color: '#2563eb', notes: 'Irmão' },
-            { id: 4, name: 'Carlos Romeu', relation: 'Irmão', color: '#059669', notes: 'Irmão' },
-            { id: 5, name: 'Rogério', relation: 'Marido', color: '#ea580c', notes: 'Marido' },
-            { id: 6, name: 'Tia Mariazinha', relation: 'Tia', color: '#0891b2', notes: 'Tia' }
+            { id: 1, name: 'Ednéia', relation: '', color: '#8b5cf6', notes: 'Ednéia' },
+            { id: 2, name: 'Mãe', relation: '', color: '#ec4899', notes: 'Mãe' },
+            { id: 3, name: 'Edyr', relation: '', color: '#2563eb', notes: 'Edyr' },
+            { id: 4, name: 'Carlos Romeu', relation: '', color: '#059669', notes: 'Carlos Romeu' },
+            { id: 5, name: 'Rogério', relation: '', color: '#ea580c', notes: 'Rogério' },
+            { id: 6, name: 'Tia Mariazinha', relation: '', color: '#0891b2', notes: 'Tia Mariazinha' }
           ],
           appointments: [],
           exams: [],
@@ -125,24 +166,22 @@ const App = {
       persons.forEach(p => personMap[p.id] = p);
 
       const appointments = data.appointments.map(a => {
-        const p = personMap[a.person_id] || { name: 'Desconhecido', relation: '', color: '#3b82f6' };
+        const p = personMap[a.person_id] || { name: 'Pessoa', color: '#3b82f6' };
         const examsToBring = data.exams.filter(e => e.target_appointment_id == a.id).length;
         return {
           ...a,
           person_name: p.name,
-          person_relation: p.relation,
           person_color: p.color,
           exams_to_bring_count: examsToBring
         };
       }).sort((a, b) => (a.appointment_date + (a.appointment_time || '')).localeCompare(b.appointment_date + (b.appointment_time || '')));
 
       const exams = data.exams.map(e => {
-        const p = personMap[e.person_id] || { name: 'Desconhecido', relation: '', color: '#3b82f6' };
+        const p = personMap[e.person_id] || { name: 'Pessoa', color: '#3b82f6' };
         const targetApp = appointments.find(a => a.id == e.target_appointment_id);
         return {
           ...e,
           person_name: p.name,
-          person_relation: p.relation,
           person_color: p.color,
           target_appointment_date: targetApp ? targetApp.appointment_date : null,
           target_doctor_name: targetApp ? targetApp.doctor_name : null,
@@ -152,11 +191,10 @@ const App = {
       });
 
       const medications = data.medications.map(m => {
-        const p = personMap[m.person_id] || { name: 'Desconhecido', relation: '', color: '#3b82f6' };
+        const p = personMap[m.person_id] || { name: 'Pessoa', color: '#3b82f6' };
         return {
           ...m,
           person_name: p.name,
-          person_relation: p.relation,
           person_color: p.color
         };
       }).sort((a, b) => (b.needs_purchase || 0) - (a.needs_purchase || 0));
@@ -334,7 +372,7 @@ const App = {
 
     let html = `
       <div class="family-chip ${this.state.selectedFamilyFilter === 'all' ? 'active' : ''}" data-person-id="all">
-        <span>Todos os Familiares</span>
+        <span>Todas as Pessoas</span>
       </div>
     `;
 
@@ -386,19 +424,18 @@ const App = {
     let html = `
       <div class="logistics-hero-banner">
         <div class="banner-content">
-          <div class="banner-tag">🚗 Assistente de Viagens & Carona</div>
+          <div class="banner-tag">🚗 Roteiro de Carona & Economia</div>
           <h2 class="banner-title">Otimizador de Deslocamentos da Ednéia</h2>
           <p class="banner-desc">
-            O sistema analisa as datas e cidades de todas as consultas e exames de cada pessoa. 
-            Assim, quando você tiver que viajar ou sair, pode levar mais familiares na mesma viagem e já aproveitar para passar na farmácia!
+            O sistema combina compromissos na mesma data e cidade para que você aproveite a viagem, leve mais pessoas de uma vez e passe na farmácia!
           </p>
         </div>
       </div>
 
       <div class="action-bar">
         <div class="action-bar-title">
-          <span>📅 Roteiro de Viagens Agrupadas</span>
-          <span class="status-pill status-agendado">${trips.length} dia(s) com compromissos</span>
+          <span>📅 Viagens & Saídas Agrupadas</span>
+          <span class="status-pill status-agendado">${trips.length} data(s)</span>
         </div>
         <div class="action-buttons-group">
           <button class="btn btn-primary" onclick="App.openModal('modal-appointment')">
@@ -415,8 +452,8 @@ const App = {
       html += `
         <div class="empty-state">
           <div class="empty-state-icon">🚗</div>
-          <h3>Nenhuma viagem ou compromisso agendado ainda</h3>
-          <p>Cadastre consultas e exames para que o sistema identifique saídas compartilhadas para a mesma cidade.</p>
+          <h3>Nenhum compromisso agendado ainda</h3>
+          <p>Cadastre consultas e exames para que o sistema organize as viagens na mesma data e cidade.</p>
           <button class="btn btn-primary" style="margin-top: 1rem;" onclick="App.openModal('modal-appointment')">
             Agendar Primeira Consulta
           </button>
@@ -452,7 +489,7 @@ const App = {
             
             <div>
               <span class="status-pill ${isShared ? 'status-pronto' : 'status-agendado'}">
-                ${isShared ? '✅ Viagem Compartilhada' : 'Viagem Individual'}
+                ${isShared ? '✅ Viagem Compartilhada' : 'Individual'}
               </span>
             </div>
           </div>
@@ -471,7 +508,7 @@ const App = {
             <!-- Linha do tempo de paradas -->
             <div class="timeline-stops">
               <strong style="font-size:0.88rem; color:var(--text-main); margin-bottom: 0.25rem; display:block;">
-                🗺️ Roteiro de Paradas sugerido para o dia:
+                🗺️ Roteiro de Paradas no dia:
               </strong>
               ${trip.events.map(ev => `
                 <div class="stop-item">
@@ -566,7 +603,7 @@ const App = {
             <span>✅ Exames Prontos para Apresentar ao Médico!</span>
           </h3>
           <p style="font-size:0.9rem; color:#047857; margin:0.35rem 0 0.75rem;">
-            Os seguintes exames já foram realizados e estão prontos. Lembre-se de colocá-los na bolsa para levar na consulta de retorno:
+            Os seguintes exames já estão prontos. Lembre-se de levá-los na consulta de retorno:
           </p>
           <div style="display:flex; flex-direction:column; gap:0.5rem;">
             ${readyExams.map(ex => `
@@ -588,9 +625,9 @@ const App = {
 
       <div class="action-bar">
         <div class="action-bar-title">
-          <span>📅 Próximas Consultas Agendadas</span>
+          <span>📅 Próximas Consultas</span>
         </div>
-        <button class="btn btn-sm btn-outline-primary" onclick="App.switchTab('consultas')">Ver Todas as Consultas</button>
+        <button class="btn btn-sm btn-outline-primary" onclick="App.switchTab('consultas')">Ver Todas</button>
       </div>
 
       ${upcoming.length === 0 ? `
@@ -622,7 +659,7 @@ const App = {
       <div class="action-bar">
         <div class="action-bar-title">
           <span>🩺 Consultas Médicas</span>
-          <span class="status-pill status-agendado">${list.length} consulta(s)</span>
+          <span class="status-pill status-agendado">${list.length}</span>
         </div>
         <button class="btn btn-primary" onclick="App.openModal('modal-appointment')">
           <span>+ Agendar Consulta</span>
@@ -634,8 +671,8 @@ const App = {
       html += `
         <div class="empty-state">
           <div class="empty-state-icon">🩺</div>
-          <h3>Nenhuma consulta cadastrada com esse filtro</h3>
-          <p>Clique no botão acima para agendar uma consulta para Ednéia ou algum familiar.</p>
+          <h3>Nenhuma consulta cadastrada</h3>
+          <p>Clique no botão acima para agendar uma consulta.</p>
         </div>
       `;
     } else {
@@ -656,7 +693,7 @@ const App = {
         <div class="item-card-header">
           <div>
             <span class="person-badge" style="background-color: ${app.person_color};">
-              👤 ${this.escapeHtml(app.person_name)} (${this.escapeHtml(app.person_relation)})
+              👤 ${this.escapeHtml(app.person_name)}
             </span>
           </div>
           <div>
@@ -675,7 +712,7 @@ const App = {
             📅 <strong>${this.formatDate(app.appointment_date)}</strong>
           </div>
           <div class="item-meta-item">
-            ⏰ <strong>${app.appointment_time ? app.appointment_time.substring(0, 5) : 'Horário a definir'}</strong>
+            ⏰ <strong>${app.appointment_time ? app.appointment_time.substring(0, 5) : 'Sem hora'}</strong>
           </div>
           <div class="item-meta-item">
             📍 <strong>${this.escapeHtml(app.city)}</strong>
@@ -740,15 +777,15 @@ const App = {
       <div class="action-bar">
         <div class="action-bar-title">
           <span>🔬 Controle de Exames & Retornos</span>
-          <span class="status-pill status-agendado">${list.length} exame(s)</span>
+          <span class="status-pill status-agendado">${list.length}</span>
         </div>
         <button class="btn btn-primary" onclick="App.openModal('modal-exam')">
-          <span>+ Novo Pedido de Exame</span>
+          <span>+ Novo Exame</span>
         </button>
       </div>
 
       <div style="background:#eff6ff; border:1px solid #bfdbfe; padding:0.85rem 1.25rem; border-radius:var(--radius-md); margin-bottom:1.25rem; font-size:0.88rem; color:#1e3a8a;">
-        💡 <strong>Como funciona o ciclo do exame:</strong> Cadastre o exame quando o médico solicitar. Quando o resultado ficar pronto, selecione a <strong>Consulta de Retorno</strong>. O sistema lembrará você de levar o laudo no dia da consulta!
+        💡 <strong>Dica:</strong> Quando o resultado ficar pronto, selecione a <strong>Consulta de Retorno</strong>. O sistema lembrará você de levar o laudo no dia da consulta!
       </div>
     `;
 
@@ -757,7 +794,7 @@ const App = {
         <div class="empty-state">
           <div class="empty-state-icon">🔬</div>
           <h3>Nenhum exame cadastrado</h3>
-          <p>Cadastre os exames solicitados pelos médicos para acompanhar datas de realização e laudos prontos.</p>
+          <p>Cadastre os exames solicitados pelos médicos.</p>
         </div>
       `;
     } else {
@@ -772,7 +809,7 @@ const App = {
             statusBadge = '<span class="status-pill status-agendado">🔵 Agendado</span>';
             break;
           case 'feito_aguardando':
-            statusBadge = '<span class="status-pill status-aguardando">🟣 Aguardando Laudo/Resultado</span>';
+            statusBadge = '<span class="status-pill status-aguardando">🟣 Aguardando Resultado</span>';
             break;
           case 'pronto_levar':
             statusBadge = '<span class="status-pill status-pronto">🟢 PRONTO P/ LEVAR NO RETORNO!</span>';
@@ -824,7 +861,6 @@ const App = {
               </div>
             </div>
 
-            <!-- Seletor Rápido de Status do Exame -->
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid #f1f5f9; gap:0.5rem; flex-wrap:wrap;">
               <div style="display:flex; align-items:center; gap:0.4rem;">
                 <label style="font-size:0.82rem; font-weight:700; color:var(--text-muted);">Mudar Status:</label>
@@ -869,7 +905,7 @@ const App = {
 
       <div class="action-bar">
         <div class="action-bar-title">
-          <span>💊 Remédios & Lista de Farmácia</span>
+          <span>💊 Remédios & Farmácia</span>
           ${needsPurchase.length > 0 ? `<span class="status-pill status-a-agendar">⚠️ ${needsPurchase.length} para comprar</span>` : ''}
         </div>
         <button class="btn btn-primary" onclick="App.openModal('modal-medication')">
@@ -882,8 +918,8 @@ const App = {
       html += `
         <div class="empty-state">
           <div class="empty-state-icon">💊</div>
-          <h3>Nenhum remédio cadastrado com esse filtro</h3>
-          <p>Adicione os remédios de uso contínuo ou temporário da Ednéia e de cada familiar.</p>
+          <h3>Nenhum remédio cadastrado</h3>
+          <p>Adicione os remédios de cada um.</p>
         </div>
       `;
     } else {
@@ -904,7 +940,7 @@ const App = {
         html += `
           <div>
             <h3 style="font-size:1.1rem; font-weight:800; color:var(--text-main); margin-bottom:0.75rem;">
-              <span>✅ Estoque em Dia (${stockOk.length})</span>
+              <span>✅ Remédios em Dia (${stockOk.length})</span>
             </h3>
             <div style="display:flex; flex-direction:column; gap:0.5rem;">
               ${stockOk.map(m => this.getMedicationRowHtml(m)).join('')}
@@ -932,7 +968,7 @@ const App = {
           </h4>
           <div class="med-details">
             ⏰ <em>${this.escapeHtml(m.instructions || 'Conforme receita')}</em>
-            ${m.preferred_city ? ` • 📍 Comprar preferencialmente em: <strong>${this.escapeHtml(m.preferred_city)}</strong>` : ''}
+            ${m.preferred_city ? ` • 📍 Comprar em: <strong>${this.escapeHtml(m.preferred_city)}</strong>` : ''}
             ${m.notes ? ` • 📝 ${this.escapeHtml(m.notes)}` : ''}
           </div>
         </div>
@@ -949,20 +985,20 @@ const App = {
   },
 
   /* =========================================================================
-     ABA 6: FAMILIARES GERENCIADOS
+     ABA 6: PESSOAS GERENCIADAS (SEM DESCRIÇÕES REDUNDANTES)
      ========================================================================= */
   renderFamiliaresTab(container) {
     let html = `
       <div class="action-bar">
         <div class="action-bar-title">
-          <span>👥 Familiares sob os Cuidados de Ednéia</span>
+          <span>👥 Pessoas Cadastradas</span>
         </div>
         <div class="action-buttons-group">
           <button class="btn btn-primary" onclick="App.openModal('modal-person')">
-            <span>+ Adicionar Familiar</span>
+            <span>+ Adicionar Pessoa</span>
           </button>
           <button class="btn btn-secondary" onclick="App.exportBackup()">
-            <span>💾 Baixar Cópia de Segurança (Backup)</span>
+            <span>💾 Baixar Cópia de Segurança</span>
           </button>
         </div>
       </div>
@@ -974,7 +1010,6 @@ const App = {
       const pApps = this.state.appointments.filter(a => a.person_id == p.id);
       const pExams = this.state.exams.filter(e => e.person_id == p.id);
       const pMeds = this.state.medications.filter(m => m.person_id == p.id);
-      const isEdneia = p.name.toLowerCase().includes('ednéia') || p.name.toLowerCase().includes('edneia');
 
       html += `
         <div class="item-card" style="border-top: 4px solid ${p.color};">
@@ -984,18 +1019,11 @@ const App = {
                 ${p.name.charAt(0)}
               </div>
               <div>
-                <h4 style="font-size:1.1rem; font-weight:800; color:var(--text-main); margin:0;">
+                <h4 style="font-size:1.15rem; font-weight:800; color:var(--text-main); margin:0;">
                   ${this.escapeHtml(p.name)}
                 </h4>
-                <span style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">${this.escapeHtml(p.relation)}</span>
               </div>
             </div>
-
-            ${isEdneia ? `<span class="status-pill status-pronto" style="font-size:0.72rem;">Cuidadora (Você)</span>` : ''}
-          </div>
-
-          <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem; min-height:36px;">
-            ${p.notes ? this.escapeHtml(p.notes) : 'Sem anotações específicas.'}
           </div>
 
           <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.5rem; text-align:center; background:#f8fafc; padding:0.6rem; border-radius:var(--radius-sm); margin-bottom:1rem; font-size:0.82rem;">
@@ -1014,10 +1042,8 @@ const App = {
           </div>
 
           <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
-            <button class="btn btn-sm btn-secondary" onclick="App.editPerson(${p.id})">Editar Perfil</button>
-            ${!isEdneia ? `
-              <button class="btn btn-sm btn-secondary" style="color:var(--danger);" onclick="App.deletePerson(${p.id})">Excluir</button>
-            ` : ''}
+            <button class="btn btn-sm btn-secondary" onclick="App.editPerson(${p.id})">Editar</button>
+            <button class="btn btn-sm btn-secondary" style="color:var(--danger);" onclick="App.deletePerson(${p.id})">Excluir</button>
           </div>
         </div>
       `;
@@ -1027,9 +1053,9 @@ const App = {
       </div>
 
       <div style="margin-top:2.5rem; background:#ffffff; border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:1.5rem;">
-        <h4 style="font-size:1.05rem; font-weight:800; margin-bottom:0.5rem;">🧪 Precisa de Demonstração ou Deseja Recomeçar?</h4>
+        <h4 style="font-size:1.05rem; font-weight:800; margin-bottom:0.5rem;">🧪 Precisa de Demonstração?</h4>
         <p style="font-size:0.88rem; color:var(--text-muted); margin-bottom:1rem;">
-          Você pode recarregar os exemplos com compromissos e exames em Campinas para demonstrar a logística da carona, ou limpar e começar do zero.
+          Você pode recarregar os exemplos com compromissos em Campinas para demonstrar a carona e logística.
         </p>
         <button class="btn btn-sm btn-outline-primary" onclick="App.seedSamples(false)">
           Recarregar Dados de Exemplo
@@ -1041,16 +1067,16 @@ const App = {
   },
 
   /* =========================================================================
-     POPULAR SELECTS & HELPERS
+     POPULAR SELECTS & HELPERS (SEM REDUNDÂNCIAS)
      ========================================================================= */
   populatePersonSelects() {
     const selects = ['app-person-id', 'exam-person-id', 'med-person-id'];
     selects.forEach(id => {
       const sel = document.getElementById(id);
       if (!sel) return;
-      sel.innerHTML = '<option value="">Selecione a pessoa...</option>';
+      sel.innerHTML = '<option value="">Selecione...</option>';
       this.state.persons.forEach(p => {
-        sel.innerHTML += `<option value="${p.id}">${this.escapeHtml(p.name)} (${this.escapeHtml(p.relation)})</option>`;
+        sel.innerHTML += `<option value="${p.id}">${this.escapeHtml(p.name)}</option>`;
       });
     });
   },
@@ -1413,14 +1439,14 @@ const App = {
     await this.loadData();
   },
 
-  // Operações de Familiar
+  // Operações de Pessoa
   async savePersonForm(e) {
     e.preventDefault();
     const id = document.getElementById('person-id').value;
     const data = {
       id: id ? parseInt(id, 10) : (this.useLocalDB ? Date.now() : null),
       name: document.getElementById('person-name').value.trim(),
-      relation: document.getElementById('person-relation').value.trim(),
+      relation: '',
       color: document.getElementById('person-color').value,
       notes: document.getElementById('person-notes').value.trim()
     };
@@ -1437,7 +1463,7 @@ const App = {
       else db.persons.push(data);
       this.localDB.save(db);
       this.closeAllModals();
-      this.showToast('Familiar salvo com sucesso!', 'success');
+      this.showToast('Pessoa salva com sucesso!', 'success');
       document.getElementById('form-person').reset();
       document.getElementById('person-id').value = '';
       await this.loadData();
@@ -1453,7 +1479,7 @@ const App = {
       const result = await res.json();
       if (result.success) {
         this.closeAllModals();
-        this.showToast('Familiar salvo com sucesso!', 'success');
+        this.showToast('Pessoa salva com sucesso!', 'success');
         document.getElementById('form-person').reset();
         document.getElementById('person-id').value = '';
         await this.loadData();
@@ -1468,14 +1494,13 @@ const App = {
     if (!p) return;
     document.getElementById('person-id').value = p.id;
     document.getElementById('person-name').value = p.name;
-    document.getElementById('person-relation').value = p.relation;
     document.getElementById('person-color').value = p.color;
     document.getElementById('person-notes').value = p.notes || '';
     this.openModal('modal-person');
   },
 
   async deletePerson(id) {
-    if (!confirm('Deseja excluir este familiar e todos os seus registros?')) return;
+    if (!confirm('Deseja excluir esta pessoa e todos os seus registros?')) return;
     if (this.useLocalDB) {
       const db = this.localDB.get();
       db.persons = db.persons.filter(p => p.id != id);
@@ -1483,7 +1508,7 @@ const App = {
       db.exams = db.exams.filter(e => e.person_id != id);
       db.medications = db.medications.filter(m => m.person_id != id);
       this.localDB.save(db);
-      this.showToast('Familiar excluído.', 'success');
+      this.showToast('Pessoa excluída.', 'success');
       await this.loadData();
       return;
     }
@@ -1492,7 +1517,7 @@ const App = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id })
     });
-    this.showToast('Familiar excluído.', 'success');
+    this.showToast('Pessoa excluída.', 'success');
     await this.loadData();
   },
 
@@ -1509,12 +1534,12 @@ const App = {
 
       const db = {
         persons: [
-          { id: 1, name: 'Ednéia', relation: 'Ela mesma (Você)', color: '#8b5cf6', notes: 'Responsável pela família e pela própria saúde' },
-          { id: 2, name: 'Mãe', relation: 'Mãe', color: '#ec4899', notes: 'Acompanhar em todas as consultas e exames' },
-          { id: 3, name: 'Edyr', relation: 'Irmão', color: '#2563eb', notes: 'Irmão' },
-          { id: 4, name: 'Carlos Romeu', relation: 'Irmão', color: '#059669', notes: 'Irmão' },
-          { id: 5, name: 'Rogério', relation: 'Marido', color: '#ea580c', notes: 'Marido' },
-          { id: 6, name: 'Tia Mariazinha', relation: 'Tia', color: '#0891b2', notes: 'Tia' }
+          { id: 1, name: 'Ednéia', relation: '', color: '#8b5cf6', notes: '' },
+          { id: 2, name: 'Mãe', relation: '', color: '#ec4899', notes: '' },
+          { id: 3, name: 'Edyr', relation: '', color: '#2563eb', notes: '' },
+          { id: 4, name: 'Carlos Romeu', relation: '', color: '#059669', notes: '' },
+          { id: 5, name: 'Rogério', relation: '', color: '#ea580c', notes: '' },
+          { id: 6, name: 'Tia Mariazinha', relation: '', color: '#0891b2', notes: '' }
         ],
         appointments: [
           { id: 101, person_id: 1, specialty: 'Ginecologia / Rotina', doctor_name: 'Dra. Camila Castro', city: 'Campinas', location_name: 'Clínica Saúde Mulher', appointment_date: strDate1, appointment_time: '14:00', status: 'agendada', notes: 'Levar exames anteriores' },
