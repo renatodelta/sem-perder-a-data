@@ -1,10 +1,11 @@
 /**
  * Sem Perder a Data - JavaScript da Aplicação
- * Compatível tanto com Servidor Local (PHP/SQLite) quanto Nuvem Estática (Vercel / Cloudflare Pages)
+ * Compatível com Cloudflare Pages + Cloudflare D1, Servidor Local (PHP/SQLite) e Modo Offline Seguro
  */
 
 const App = {
-  isCloudflareOrVercel: false, // Detectado dinamicamente
+  apiEndpoint: 'api', // 'api' para Cloudflare D1, 'api.php' para XAMPP local
+  useLocalDB: false,
   state: {
     persons: [],
     appointments: [],
@@ -17,34 +18,72 @@ const App = {
     currentDate: new Date().toISOString().split('T')[0]
   },
 
+  apiUrl(action) {
+    return `${this.apiEndpoint}?action=${action}`;
+  },
+
   async init() {
     this.bindEvents();
-    
-    // Testa se o backend PHP está disponível. Se não estiver (como no Vercel/Cloudflare Pages), usa LocalStorage
+
+    // 1º Tenta a API do Cloudflare Pages (functions/api.js com D1)
     try {
-      const testRes = await fetch('api.php?action=get_all_data', { method: 'GET' });
-      if (!testRes.ok || testRes.headers.get('content-type')?.indexOf('application/json') === -1) {
-        this.isCloudflareOrVercel = true;
+      const resCF = await fetch('api?action=get_all_data');
+      if (resCF.ok && resCF.headers.get('content-type')?.includes('application/json')) {
+        const data = await resCF.json();
+        if (data.success) {
+          this.apiEndpoint = 'api';
+          this.useLocalDB = false;
+          console.log('✅ Conectado ao Cloudflare D1 (Banco de dados na nuvem da Cloudflare)');
+          await this.processLoadedData(data);
+          return;
+        }
       }
-    } catch (e) {
-      this.isCloudflareOrVercel = true;
-    }
+    } catch (e) {}
 
-    if (this.isCloudflareOrVercel) {
-      console.log('Ambiente sem PHP detectado (Vercel/Cloudflare). Operando via Armazenamento Local Seguro.');
-      this.localDB.init();
-    }
+    // 2º Se não for Cloudflare, tenta o PHP local do XAMPP
+    try {
+      const resPHP = await fetch('api.php?action=get_all_data');
+      if (resPHP.ok && resPHP.headers.get('content-type')?.includes('application/json')) {
+        const data = await resPHP.json();
+        if (data.success) {
+          this.apiEndpoint = 'api.php';
+          this.useLocalDB = false;
+          console.log('✅ Conectado ao PHP/SQLite local (XAMPP)');
+          await this.processLoadedData(data);
+          return;
+        }
+      }
+    } catch (e) {}
 
+    // 3º Se ambos falharem, opera via LocalDB seguro
+    console.log('ℹ️ Operando via armazenamento local persistente');
+    this.useLocalDB = true;
+    this.localDB.init();
     await this.loadData();
 
-    // Se estiver sem dados, carrega exemplos práticos
     if (this.state.appointments.length === 0 && this.state.exams.length === 0) {
       await this.seedSamples(true);
     }
   },
 
+  async processLoadedData(data) {
+    this.state.persons = data.persons || [];
+    this.state.appointments = data.appointments || [];
+    this.state.exams = data.exams || [];
+    this.state.medications = data.medications || [];
+    this.state.trips = data.trips || [];
+    this.state.summary = data.summary || {};
+    this.state.currentDate = data.current_date || new Date().toISOString().split('T')[0];
+
+    this.updateBadges();
+    this.populatePersonSelects();
+    this.populateAppointmentSelects();
+    this.renderFamilyFilterBar();
+    this.renderCurrentTab();
+  },
+
   /* =========================================================================
-     ADAPTADOR DE ARMAZENAMENTO LOCAL (PARA VERCEL / CLOUDFLARE)
+     ADAPTADOR LOCALSTORAGE (FALLBACK SE D1 AINDA NÃO FOI VINCULADO)
      ========================================================================= */
   localDB: {
     STORAGE_KEY: 'sem_perder_a_data_db_v1',
@@ -85,7 +124,6 @@ const App = {
       const personMap = {};
       persons.forEach(p => personMap[p.id] = p);
 
-      // Enriquecer consultas
       const appointments = data.appointments.map(a => {
         const p = personMap[a.person_id] || { name: 'Desconhecido', relation: '', color: '#3b82f6' };
         const examsToBring = data.exams.filter(e => e.target_appointment_id == a.id).length;
@@ -96,9 +134,8 @@ const App = {
           person_color: p.color,
           exams_to_bring_count: examsToBring
         };
-      }).sort((a, b) => (a.appointment_date + a.appointment_time).localeCompare(b.appointment_date + b.appointment_time));
+      }).sort((a, b) => (a.appointment_date + (a.appointment_time || '')).localeCompare(b.appointment_date + (b.appointment_time || '')));
 
-      // Enriquecer exames
       const exams = data.exams.map(e => {
         const p = personMap[e.person_id] || { name: 'Desconhecido', relation: '', color: '#3b82f6' };
         const targetApp = appointments.find(a => a.id == e.target_appointment_id);
@@ -114,7 +151,6 @@ const App = {
         };
       });
 
-      // Enriquecer remédios
       const medications = data.medications.map(m => {
         const p = personMap[m.person_id] || { name: 'Desconhecido', relation: '', color: '#3b82f6' };
         return {
@@ -125,7 +161,6 @@ const App = {
         };
       }).sort((a, b) => (b.needs_purchase || 0) - (a.needs_purchase || 0));
 
-      // Calcular Logística de Viagens
       const logisticsEvents = {};
 
       appointments.forEach(a => {
@@ -242,45 +277,21 @@ const App = {
   },
 
   async loadData() {
-    if (this.isCloudflareOrVercel) {
+    if (this.useLocalDB) {
       const calc = this.localDB.calculateData();
-      this.state.persons = calc.persons;
-      this.state.appointments = calc.appointments;
-      this.state.exams = calc.exams;
-      this.state.medications = calc.medications;
-      this.state.trips = calc.trips;
-      this.state.summary = calc.summary;
-      this.state.currentDate = calc.current_date;
-
-      this.updateBadges();
-      this.populatePersonSelects();
-      this.populateAppointmentSelects();
-      this.renderFamilyFilterBar();
-      this.renderCurrentTab();
+      await this.processLoadedData(calc);
       return;
     }
 
     try {
-      const res = await fetch('api.php?action=get_all_data');
+      const res = await fetch(this.apiUrl('get_all_data'));
       const data = await res.json();
       if (data.success) {
-        this.state.persons = data.persons || [];
-        this.state.appointments = data.appointments || [];
-        this.state.exams = data.exams || [];
-        this.state.medications = data.medications || [];
-        this.state.trips = data.trips || [];
-        this.state.summary = data.summary || {};
-        this.state.currentDate = data.current_date || new Date().toISOString().split('T')[0];
-
-        this.updateBadges();
-        this.populatePersonSelects();
-        this.populateAppointmentSelects();
-        this.renderFamilyFilterBar();
-        this.renderCurrentTab();
+        await this.processLoadedData(data);
       }
     } catch (err) {
-      // Falhou PHP, chaveia para LocalDB
-      this.isCloudflareOrVercel = true;
+      console.warn('Falha na API, alternando para armazenamento local');
+      this.useLocalDB = true;
       this.localDB.init();
       return this.loadData();
     }
@@ -481,7 +492,7 @@ const App = {
               `).join('')}
             </div>
 
-            <!-- Dica de Farmácia se houver remédios para comprar nesta cidade -->
+            <!-- Dica de Farmácia -->
             ${trip.meds_to_buy && trip.meds_to_buy.length > 0 ? `
               <div class="pharmacy-hint-box">
                 <span style="font-size:1.4rem;">💊</span>
@@ -505,7 +516,7 @@ const App = {
   },
 
   /* =========================================================================
-     ABA 2: PAINEL GERAL (HOJE & PRÓXIMOS DIAS)
+     ABA 2: PAINEL GERAL
      ========================================================================= */
   renderDashboardTab(container) {
     const s = this.state.summary;
@@ -549,7 +560,6 @@ const App = {
         </div>
       </div>
 
-      <!-- Alertas Prioritários para Ednéia não esquecer nada -->
       ${readyExams.length > 0 ? `
         <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-left:5px solid #10b981; border-radius:var(--radius-md); padding:1.25rem; margin-bottom:1.5rem;">
           <h3 style="color:#065f46; font-size:1.1rem; font-weight:800; display:flex; align-items:center; gap:0.5rem;">
@@ -576,7 +586,6 @@ const App = {
         </div>
       ` : ''}
 
-      <!-- Lista de Próximas Consultas -->
       <div class="action-bar">
         <div class="action-bar-title">
           <span>📅 Próximas Consultas Agendadas</span>
@@ -1073,7 +1082,7 @@ const App = {
     e.preventDefault();
     const id = document.getElementById('app-id').value;
     const data = {
-      id: id ? parseInt(id, 10) : Date.now(),
+      id: id ? parseInt(id, 10) : (this.useLocalDB ? Date.now() : null),
       person_id: parseInt(document.getElementById('app-person-id').value, 10),
       specialty: document.getElementById('app-specialty').value.trim(),
       doctor_name: document.getElementById('app-doctor').value.trim(),
@@ -1090,14 +1099,11 @@ const App = {
       return;
     }
 
-    if (this.isCloudflareOrVercel) {
+    if (this.useLocalDB) {
       const db = this.localDB.get();
       const idx = db.appointments.findIndex(a => a.id == data.id);
-      if (idx >= 0) {
-        db.appointments[idx] = data;
-      } else {
-        db.appointments.push(data);
-      }
+      if (idx >= 0) db.appointments[idx] = data;
+      else db.appointments.push(data);
       this.localDB.save(db);
       this.closeAllModals();
       this.showToast('Consulta salva com sucesso!', 'success');
@@ -1108,7 +1114,7 @@ const App = {
     }
 
     try {
-      const res = await fetch('api.php?action=save_appointment', {
+      const res = await fetch(this.apiUrl('save_appointment'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -1145,7 +1151,7 @@ const App = {
 
   async deleteAppointment(id) {
     if (!confirm('Deseja realmente excluir esta consulta?')) return;
-    if (this.isCloudflareOrVercel) {
+    if (this.useLocalDB) {
       const db = this.localDB.get();
       db.appointments = db.appointments.filter(a => a.id != id);
       this.localDB.save(db);
@@ -1153,7 +1159,7 @@ const App = {
       await this.loadData();
       return;
     }
-    await fetch('api.php?action=delete_appointment', {
+    await fetch(this.apiUrl('delete_appointment'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id })
@@ -1163,7 +1169,7 @@ const App = {
   },
 
   async toggleAppointmentStatus(id, newStatus) {
-    if (this.isCloudflareOrVercel) {
+    if (this.useLocalDB) {
       const db = this.localDB.get();
       const app = db.appointments.find(a => a.id == id);
       if (app) app.status = newStatus;
@@ -1172,7 +1178,7 @@ const App = {
       await this.loadData();
       return;
     }
-    await fetch('api.php?action=update_appointment_status', {
+    await fetch(this.apiUrl('update_appointment_status'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status: newStatus })
@@ -1194,7 +1200,7 @@ const App = {
     e.preventDefault();
     const id = document.getElementById('exam-id').value;
     const data = {
-      id: id ? parseInt(id, 10) : Date.now(),
+      id: id ? parseInt(id, 10) : (this.useLocalDB ? Date.now() : null),
       person_id: parseInt(document.getElementById('exam-person-id').value, 10),
       exam_name: document.getElementById('exam-name').value.trim(),
       target_appointment_id: document.getElementById('exam-target-appointment-id').value ? parseInt(document.getElementById('exam-target-appointment-id').value, 10) : null,
@@ -1211,7 +1217,7 @@ const App = {
       return;
     }
 
-    if (this.isCloudflareOrVercel) {
+    if (this.useLocalDB) {
       const db = this.localDB.get();
       const idx = db.exams.findIndex(item => item.id == data.id);
       if (idx >= 0) db.exams[idx] = data;
@@ -1226,7 +1232,7 @@ const App = {
     }
 
     try {
-      const res = await fetch('api.php?action=save_exam', {
+      const res = await fetch(this.apiUrl('save_exam'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -1261,7 +1267,7 @@ const App = {
   },
 
   async updateExamStatus(id, newStatus) {
-    if (this.isCloudflareOrVercel) {
+    if (this.useLocalDB) {
       const db = this.localDB.get();
       const ex = db.exams.find(e => e.id == id);
       if (ex) ex.status = newStatus;
@@ -1270,7 +1276,7 @@ const App = {
       await this.loadData();
       return;
     }
-    await fetch('api.php?action=update_exam_status', {
+    await fetch(this.apiUrl('update_exam_status'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status: newStatus })
@@ -1285,7 +1291,7 @@ const App = {
 
   async deleteExam(id) {
     if (!confirm('Deseja excluir este exame?')) return;
-    if (this.isCloudflareOrVercel) {
+    if (this.useLocalDB) {
       const db = this.localDB.get();
       db.exams = db.exams.filter(e => e.id != id);
       this.localDB.save(db);
@@ -1293,7 +1299,7 @@ const App = {
       await this.loadData();
       return;
     }
-    await fetch('api.php?action=delete_exam', {
+    await fetch(this.apiUrl('delete_exam'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id })
@@ -1307,7 +1313,7 @@ const App = {
     e.preventDefault();
     const id = document.getElementById('med-id').value;
     const data = {
-      id: id ? parseInt(id, 10) : Date.now(),
+      id: id ? parseInt(id, 10) : (this.useLocalDB ? Date.now() : null),
       person_id: parseInt(document.getElementById('med-person-id').value, 10),
       name: document.getElementById('med-name').value.trim(),
       dosage: document.getElementById('med-dosage').value.trim(),
@@ -1322,7 +1328,7 @@ const App = {
       return;
     }
 
-    if (this.isCloudflareOrVercel) {
+    if (this.useLocalDB) {
       const db = this.localDB.get();
       const idx = db.medications.findIndex(m => m.id == data.id);
       if (idx >= 0) db.medications[idx] = data;
@@ -1337,7 +1343,7 @@ const App = {
     }
 
     try {
-      const res = await fetch('api.php?action=save_medication', {
+      const res = await fetch(this.apiUrl('save_medication'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -1370,7 +1376,7 @@ const App = {
   },
 
   async toggleMedPurchase(id, needs) {
-    if (this.isCloudflareOrVercel) {
+    if (this.useLocalDB) {
       const db = this.localDB.get();
       const m = db.medications.find(item => item.id == id);
       if (m) m.needs_purchase = needs;
@@ -1379,7 +1385,7 @@ const App = {
       await this.loadData();
       return;
     }
-    await fetch('api.php?action=toggle_medication_purchase', {
+    await fetch(this.apiUrl('toggle_medication_purchase'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, needs_purchase: needs })
@@ -1390,7 +1396,7 @@ const App = {
 
   async deleteMedication(id) {
     if (!confirm('Deseja excluir este remédio?')) return;
-    if (this.isCloudflareOrVercel) {
+    if (this.useLocalDB) {
       const db = this.localDB.get();
       db.medications = db.medications.filter(m => m.id != id);
       this.localDB.save(db);
@@ -1398,7 +1404,7 @@ const App = {
       await this.loadData();
       return;
     }
-    await fetch('api.php?action=delete_medication', {
+    await fetch(this.apiUrl('delete_medication'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id })
@@ -1412,7 +1418,7 @@ const App = {
     e.preventDefault();
     const id = document.getElementById('person-id').value;
     const data = {
-      id: id ? parseInt(id, 10) : Date.now(),
+      id: id ? parseInt(id, 10) : (this.useLocalDB ? Date.now() : null),
       name: document.getElementById('person-name').value.trim(),
       relation: document.getElementById('person-relation').value.trim(),
       color: document.getElementById('person-color').value,
@@ -1424,7 +1430,7 @@ const App = {
       return;
     }
 
-    if (this.isCloudflareOrVercel) {
+    if (this.useLocalDB) {
       const db = this.localDB.get();
       const idx = db.persons.findIndex(p => p.id == data.id);
       if (idx >= 0) db.persons[idx] = data;
@@ -1439,7 +1445,7 @@ const App = {
     }
 
     try {
-      const res = await fetch('api.php?action=save_person', {
+      const res = await fetch(this.apiUrl('save_person'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -1470,7 +1476,7 @@ const App = {
 
   async deletePerson(id) {
     if (!confirm('Deseja excluir este familiar e todos os seus registros?')) return;
-    if (this.isCloudflareOrVercel) {
+    if (this.useLocalDB) {
       const db = this.localDB.get();
       db.persons = db.persons.filter(p => p.id != id);
       db.appointments = db.appointments.filter(a => a.person_id != id);
@@ -1481,7 +1487,7 @@ const App = {
       await this.loadData();
       return;
     }
-    await fetch('api.php?action=delete_person', {
+    await fetch(this.apiUrl('delete_person'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id })
@@ -1492,7 +1498,7 @@ const App = {
 
   // Recarregar Dados Demonstrativos
   async seedSamples(silent = false) {
-    if (this.isCloudflareOrVercel) {
+    if (this.useLocalDB) {
       const date1 = new Date();
       date1.setDate(date1.getDate() + 3);
       const strDate1 = date1.toISOString().split('T')[0];
@@ -1535,7 +1541,7 @@ const App = {
     }
 
     try {
-      const res = await fetch('api.php?action=seed_samples');
+      const res = await fetch(this.apiUrl('seed_samples'));
       const data = await res.json();
       if (data.success) {
         await this.loadData();
@@ -1549,11 +1555,11 @@ const App = {
   // Exportar Backup
   exportBackup() {
     let backupData = {};
-    if (this.isCloudflareOrVercel) {
+    if (this.useLocalDB) {
       backupData = this.localDB.get();
       backupData.exported_at = new Date().toISOString();
     } else {
-      window.location.href = 'api.php?action=export_backup';
+      window.location.href = this.apiUrl('export_backup');
       return;
     }
 
@@ -1567,7 +1573,6 @@ const App = {
     this.showToast('Backup baixado com sucesso!', 'success');
   },
 
-  // Utilitários
   formatDate(dateStr) {
     if (!dateStr) return '';
     const parts = dateStr.split('-');
