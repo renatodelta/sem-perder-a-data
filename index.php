@@ -8,11 +8,11 @@
   
   <!-- Configurações PWA (Instalável no Celular) -->
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#133834">
+  <meta name="theme-color" content="#008b9e">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Sem Perder a Data">
+  <meta name="apple-mobile-web-app-title" content="Zelo Familiar">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
   
@@ -21,23 +21,28 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
-  <!-- Estilos Mobile-First -->
-  <link rel="stylesheet" href="assets/css/style.css?v=4">
+  <!-- Estilos Mobile-First Ocean Teal -->
+  <link rel="stylesheet" href="assets/css/style.css?v=5">
 </head>
 <body>
 
-  <!-- CABEÇALHO SUPERIOR MODERNO (INSPIRADO NO DESIGN DE REFERÊNCIA) -->
+  <!-- CABEÇALHO CURVO OCEAN TEAL (UI KIT 8 TELAS) -->
   <header class="header-app">
     <div class="header-container">
-      <div class="greeting-box">
-        <span class="greeting-badge">Olá, Ednéia 👋</span>
-        <h1 class="greeting-title">Sem Perder <span class="highlight-text">a Data</span></h1>
+      <div class="user-profile-header">
+        <div class="user-avatar-circle" title="Ednéia - Cuidadora">
+          👩‍⚕️
+        </div>
+        <div class="user-greeting-text">
+          <span class="user-greeting-sub">Olá, Cuidadora 👋</span>
+          <h1 class="user-greeting-name">Ednéia • Zelo</h1>
+        </div>
       </div>
       
       <div class="header-actions">
         <!-- Botão de Instalar no Celular PWA -->
-        <button class="btn-header-icon btn-install-pwa" onclick="App.promptInstall()" style="display:none;" title="Instalar Aplicativo no Celular">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <button class="btn-header-glass btn-install-pwa" onclick="App.promptInstall()" style="display:none;" title="Instalar Aplicativo no Celular">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -45,9 +50,13 @@
         </button>
 
         <!-- Botão Rápido de Familiares -->
-        <button class="btn-header-pill" onclick="App.switchTab('familiares')" title="Gerenciar Familiares">
-          <span class="pill-dot"></span>
-          <span>👥 Familiares</span>
+        <button class="btn-header-glass" onclick="App.switchTab('familiares')" title="Gerenciar Familiares Cuidados">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
         </button>
       </div>
     </div>
@@ -400,6 +409,6 @@
   </div>
 
   <!-- Scripts -->
-  <script src="assets/js/app.js?v=4"></script>
+  <script src="assets/js/app.js?v=5"></script>
 </body>
 </html>

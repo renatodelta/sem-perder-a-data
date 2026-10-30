@@ -17,6 +17,9 @@ const App = {
     summary: {},
     currentTab: 'dashboard',
     selectedFamilyFilter: 'all',
+    selectedCategoryFilter: 'all',
+    selectedMedFilter: 'all',
+    searchQuery: '',
     currentDate: new Date().toISOString().split('T')[0]
   },
 
@@ -513,6 +516,91 @@ const App = {
     this.renderCurrentTab();
   },
 
+  onSearchInput(val) {
+    this.state.searchQuery = (val || '').trim().toLowerCase();
+    this.renderCurrentTab();
+  },
+
+  setCategoryFilter(cat) {
+    this.state.selectedCategoryFilter = cat;
+    this.renderCurrentTab();
+  },
+
+  setMedFilter(filter) {
+    this.state.selectedMedFilter = filter;
+    this.renderCurrentTab();
+  },
+
+  getAppointmentCategory(app) {
+    const text = `${app.specialty || ''} ${app.doctor_name || ''} ${app.notes || ''}`.toLowerCase();
+    if (text.includes('inss') || text.includes('previd') || text.includes('perícia') || text.includes('pericia')) {
+      return 'inss';
+    }
+    if (text.includes('banco') || text.includes('benefício') || text.includes('beneficio') || text.includes('pagamento') || text.includes('saque') || text.includes('bradesco') || text.includes('brasil') || text.includes('caixa') || text.includes('itaú') || text.includes('itau') || text.includes('santander')) {
+      return 'banco';
+    }
+    if (text.includes('cartório') || text.includes('cartorio') || text.includes('documento') || text.includes('mercado') || text.includes('compras')) {
+      return 'outro';
+    }
+    return 'saude';
+  },
+
+  getSearchBarHtml(placeholder = 'Buscar por médico, cidade, pessoa...') {
+    return `
+      <div class="search-filter-bar">
+        <div class="search-input-wrapper">
+          <span class="search-icon">🔍</span>
+          <input type="text"
+                 class="search-input"
+                 placeholder="${placeholder}"
+                 value="${this.escapeHtml(this.state.searchQuery)}"
+                 oninput="App.onSearchInput(this.value)">
+        </div>
+        <button class="btn-search-filter" onclick="App.openNewSheet()" title="Novo Agendamento">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </button>
+      </div>
+    `;
+  },
+
+  getCategoryPillsHtml() {
+    const cur = this.state.selectedCategoryFilter;
+    const cats = [
+      { id: 'all', label: 'Todos' },
+      { id: 'saude', label: '🩺 Saúde' },
+      { id: 'inss', label: '🏛️ INSS' },
+      { id: 'banco', label: '🏦 Banco' },
+      { id: 'outro', label: '📋 Outro' }
+    ];
+    return `
+      <div class="pill-filters-scroll">
+        ${cats.map(c => `
+          <button class="filter-pill-btn ${cur === c.id ? 'active' : ''}" onclick="App.setCategoryFilter('${c.id}')">
+            ${c.label}
+          </button>
+        `).join('')}
+      </div>
+    `;
+  },
+
+  getMedPillsHtml() {
+    const cur = this.state.selectedMedFilter;
+    const filters = [
+      { id: 'all', label: 'Todos' },
+      { id: 'comprar', label: '🛒 Falta Comprar' },
+      { id: 'em_dia', label: '✅ Em Dia' }
+    ];
+    return `
+      <div class="pill-filters-scroll">
+        ${filters.map(f => `
+          <button class="filter-pill-btn ${cur === f.id ? 'active' : ''}" onclick="App.setMedFilter('${f.id}')">
+            ${f.label}
+          </button>
+        `).join('')}
+      </div>
+    `;
+  },
+
   getFilterSelectHtml() {
     return `
       <div class="person-filter-wrapper">
@@ -678,186 +766,172 @@ const App = {
   },
 
   /* =========================================================================
-     ABA 2: PAINEL GERAL (INSPIRADO NO DESIGN DE REFERÊNCIA)
+     ABA 2: PAINEL GERAL (DESIGN OCEAN TEAL COM DONUT CHART & FILTROS)
      ========================================================================= */
   renderDashboardTab(container) {
     const s = this.state.summary;
     const today = this.state.currentDate;
+    const q = this.state.searchQuery;
+    const catFilter = this.state.selectedCategoryFilter;
 
-    const upcoming = this.state.appointments.filter(a => a.status === 'agendada' && a.appointment_date >= today);
-    const readyExams = this.state.exams.filter(e => e.status === 'pronto_levar');
+    // Métricas do Donut Chart (Tela 4 do Ocean Teal UI Kit)
+    const agendadas = this.state.appointments.filter(a => a.status === 'agendada').length;
+    const examesProntos = this.state.exams.filter(e => e.status === 'pronto_levar').length;
+    const medsComprar = this.state.medications.filter(m => m.needs_purchase == 1).length;
+    const totalCare = agendadas + examesProntos + medsComprar;
+
+    // Geometria exata do Donut SVG (Raio 40, Circunferência 2 * PI * 40 ≈ 251.33)
+    const C = 251.33;
+    let seg1Dash = '0 251.33', seg1Offset = 0;
+    let seg2Dash = '0 251.33', seg2Offset = 0;
+    let seg3Dash = '0 251.33', seg3Offset = 0;
+
+    if (totalCare > 0) {
+      const p1 = agendadas / totalCare;
+      const p2 = examesProntos / totalCare;
+      const p3 = medsComprar / totalCare;
+
+      const len1 = p1 * C;
+      const len2 = p2 * C;
+      const len3 = p3 * C;
+
+      seg1Dash = `${len1.toFixed(2)} ${C.toFixed(2)}`;
+      seg1Offset = 0;
+
+      seg2Dash = `${len2.toFixed(2)} ${C.toFixed(2)}`;
+      seg2Offset = -len1.toFixed(2);
+
+      seg3Dash = `${len3.toFixed(2)} ${C.toFixed(2)}`;
+      seg3Offset = -(len1 + len2).toFixed(2);
+    }
+
+    // Próxima Viagem Regional
     const trips = this.state.trips || [];
-
-    // Primeiro compromisso (Card 1 Bento)
-    const firstApp = upcoming.length > 0 ? upcoming[0] : (this.state.appointments[0] || null);
-
-    // Segundo compromisso / Exame (Card 2 Bento)
-    const firstExam = this.state.exams.length > 0 ? this.state.exams[0] : null;
-
-    // Viagem / Carona (Card 3 Bento)
     const firstTrip = trips.length > 0 ? trips[0] : null;
 
-    // Cálculo dinâmico de progresso da saúde & saídas (padrão 80% como no anexo)
-    const totalItems = this.state.appointments.length + this.state.exams.length;
-    const completedItems = this.state.appointments.filter(a => a.status === 'realizada').length + readyExams.length;
-    let progressPercent = 80;
-    if (totalItems > 0) {
-      progressPercent = Math.min(100, Math.max(30, Math.round(((completedItems + 2) / (totalItems + 2)) * 100)));
-    }
-    const strokeDash = 251.2;
-    const strokeOffset = strokeDash * (1 - progressPercent / 100);
+    // Filtro dos compromissos
+    let upcoming = this.state.appointments.filter(a => {
+      // Se não estiver buscando, mostra agendadas de hoje em diante; se buscar, filtra no catálogo todo
+      if (!q && a.status !== 'agendada') return false;
+      if (!q && a.appointment_date < today) return false;
 
-    const totalRemaining = Math.max(0, this.state.appointments.length + this.state.exams.length - 2);
+      // Filtro de Categoria
+      if (catFilter !== 'all' && this.getAppointmentCategory(a) !== catFilter) {
+        return false;
+      }
+
+      // Filtro de Busca
+      if (q) {
+        const str = `${a.specialty || ''} ${a.doctor_name || ''} ${a.person_name || ''} ${a.city || ''} ${a.notes || ''}`.toLowerCase();
+        if (!str.includes(q)) return false;
+      }
+
+      return true;
+    });
+
+    const readyExams = this.state.exams.filter(e => e.status === 'pronto_levar');
 
     let html = `
-      <!-- HERO CARD COM MEDIDOR CIRCULAR (LAYOUT DA IMAGEM) -->
-      <div class="hero-progress-card">
-        <div class="hero-content">
-          <span class="hero-chip">✨ Saúde & Família</span>
-          <h2 class="hero-title">Tudo sob controle com seus agendamentos</h2>
-          <p class="hero-subtitle">Exames vinculados a retornos e caronas organizadas</p>
-          <button class="hero-btn" onclick="App.openNewSheet()">
-            <span>+ Novo Agendamento</span>
-          </button>
+      <!-- BARRA DE PESQUISA & BOTÃO DE AÇÃO TEAL -->
+      ${this.getSearchBarHtml('Buscar consulta, exame, pessoa...')}
+
+      <!-- CARD DE ESTATÍSTICAS COM DONUT CHART (TELA 4) -->
+      <div class="stats-donut-card">
+        <div class="stats-card-header">
+          <div class="stats-card-title">Resumo de Cuidados</div>
+          <div class="stats-card-date">📅 ${this.formatDate(today)}</div>
         </div>
-        <div class="hero-gauge-box">
-          <div class="gauge-circle">
-            <svg viewBox="0 0 100 100" class="gauge-svg">
-              <circle class="gauge-bg" cx="50" cy="50" r="40" />
-              <circle class="gauge-fill" cx="50" cy="50" r="40" style="stroke-dasharray: ${strokeDash}; stroke-dashoffset: ${strokeOffset};" />
+        <div class="stats-card-body">
+          <div class="donut-chart-box">
+            <svg viewBox="0 0 100 100" class="donut-svg">
+              <circle class="donut-bg" cx="50" cy="50" r="40" />
+              ${totalCare > 0 ? `
+                <circle class="donut-seg-1" cx="50" cy="50" r="40" stroke-dasharray="${seg1Dash}" stroke-dashoffset="${seg1Offset}" />
+                <circle class="donut-seg-2" cx="50" cy="50" r="40" stroke-dasharray="${seg2Dash}" stroke-dashoffset="${seg2Offset}" />
+                <circle class="donut-seg-3" cx="50" cy="50" r="40" stroke-dasharray="${seg3Dash}" stroke-dashoffset="${seg3Offset}" />
+              ` : ''}
             </svg>
-            <div class="gauge-value">
-              <span class="gauge-num">${progressPercent}%</span>
-              <span class="gauge-label">Em dia</span>
+            <div class="donut-center-text">
+              <div class="donut-center-num">${totalCare}</div>
+              <div class="donut-center-label">Ações</div>
+            </div>
+          </div>
+
+          <div class="donut-legend-list">
+            <div class="legend-item" onclick="App.switchTab('consultas')" style="cursor:pointer;" title="Ver Consultas">
+              <span class="legend-dot green"></span>
+              <span>Consultas</span>
+              <span class="legend-num">${agendadas}</span>
+            </div>
+            <div class="legend-item" onclick="App.switchTab('exames')" style="cursor:pointer;" title="Ver Exames Prontos">
+              <span class="legend-dot cyan"></span>
+              <span>Exames Prontos</span>
+              <span class="legend-num">${examesProntos}</span>
+            </div>
+            <div class="legend-item" onclick="App.switchTab('remedios')" style="cursor:pointer;" title="Ver Remédios a Comprar">
+              <span class="legend-dot orange"></span>
+              <span>Falta Comprar</span>
+              <span class="legend-num">${medsComprar}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- TÍTULO DE SEÇÃO "TODAY'S SCHEDULE" -->
-      <div class="section-schedule-header">
-        <h3 class="section-schedule-title">Compromissos & Agenda</h3>
-        <span class="schedule-date-badge">📅 Hoje & Próximos</span>
-      </div>
+      <!-- DESTAQUE DA PRÓXIMA SAÍDA REGIONAL (SE HOUVER) -->
+      ${firstTrip ? (() => {
+        const tripDateParts = firstTrip.date.split('-');
+        const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        const monthStr = monthNames[parseInt(tripDateParts[1], 10) - 1] || '';
+        return `
+          <div class="trip-card shared-trip" style="margin-bottom: 1.25rem;">
+            <div class="trip-card-header">
+              <div class="trip-date-info">
+                <div class="trip-calendar-box">
+                  <div class="month">${monthStr}</div>
+                  <div class="day">${tripDateParts[2]}</div>
+                </div>
+                <div class="trip-meta-title">
+                  <h3>📍 Próxima Saída: ${this.escapeHtml(firstTrip.city)}</h3>
+                  <p>${firstTrip.total_people} pessoa(s) • ${firstTrip.total_events} parada(s)</p>
+                </div>
+              </div>
+              <button class="btn btn-sm btn-outline-primary" onclick="App.switchTab('logistica')">
+                Ver Roteiro
+              </button>
+            </div>
+            <div class="trip-body" style="padding-top: 0.75rem; padding-bottom: 0.75rem;">
+              <div class="trip-passengers" style="margin-bottom: 0; padding-bottom: 0; border: none;">
+                ${firstTrip.people.map(p => `
+                  <span class="passenger-pill" style="background-color: ${p.color}; font-size: 0.75rem; padding: 2px 9px;">
+                    👤 ${this.escapeHtml(p.name)}
+                  </span>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      })() : ''}
 
-      <!-- GRID BENTO ASSIMÉTRICO (4 CARTÕES INSPIRADOS NO LAYOUT) -->
-      <div class="bento-schedule-grid">
-        
-        <!-- CARD 1: CARTÃO BRANCO (CONSULTA MÉDICA) -->
-        <div class="bento-card bento-card-white" onclick="${firstApp ? `App.switchTab('consultas')` : `App.openModal('modal-appointment')`}">
-          <div>
-            <div class="bento-card-header">
-              <span class="bento-time-tag">
-                ⏰ ${firstApp && firstApp.appointment_time ? firstApp.appointment_time.substring(0, 5) : '08:00'}
-              </span>
-              <span style="font-size:1rem;">🩺</span>
-            </div>
-            <div class="bento-card-title">
-              ${firstApp ? this.escapeHtml(firstApp.specialty) : 'Consulta Médica'}
-            </div>
-            <div class="bento-card-subtitle">
-              ${firstApp ? (firstApp.doctor_name ? this.escapeHtml(firstApp.doctor_name) : this.escapeHtml(firstApp.city)) : 'Toque p/ agendar'}
-            </div>
-          </div>
-          <div>
-            ${firstApp ? `
-              <span class="bento-person-chip" style="background-color: ${firstApp.person_color};">
-                👤 ${this.escapeHtml(firstApp.person_name)}
-              </span>
-            ` : `
-              <span class="bento-person-chip" style="background-color: var(--primary-spruce);">
-                + Agendar
-              </span>
-            `}
-          </div>
-        </div>
-
-        <!-- CARD 2: CARTÃO PEACH (EXAME / RETORNO) -->
-        <div class="bento-card bento-card-peach" onclick="${firstExam ? `App.switchTab('exames')` : `App.openModal('modal-exam')`}">
-          <div>
-            <div class="bento-card-header">
-              <span class="bento-time-tag">
-                🔬 ${firstExam && firstExam.exam_time ? firstExam.exam_time.substring(0, 5) : '09:30'}
-              </span>
-              <span style="font-size:1rem;">📋</span>
-            </div>
-            <div class="bento-card-title">
-              ${firstExam ? this.escapeHtml(firstExam.exam_name) : 'Pedido de Exame'}
-            </div>
-            <div class="bento-card-subtitle">
-              ${firstExam ? (firstExam.target_doctor_name || firstExam.target_specialty ? '🎯 Retorno: ' + this.escapeHtml(firstExam.target_doctor_name || firstExam.target_specialty) : this.escapeHtml(firstExam.location_name || 'Laboratório')) : 'Vincule ao retorno'}
-            </div>
-          </div>
-          <div>
-            ${firstExam ? `
-              <span class="status-pill ${firstExam.status === 'pronto_levar' ? 'status-pronto' : 'status-agendado'}" style="margin-top:0.4rem;">
-                ${firstExam.status === 'pronto_levar' ? '✅ Pronto p/ Retorno' : 'Acompanhar'}
-              </span>
-            ` : `
-              <span class="status-pill status-agendado" style="margin-top:0.4rem;">+ Novo Exame</span>
-            `}
-          </div>
-        </div>
-
-        <!-- CARD 3: CARTÃO PEACH ALTO COM GRÁFICO (VIAGEM / CARONA) -->
-        <div class="bento-card bento-card-illustrated" onclick="App.switchTab('logistica')">
-          <div>
-            <div class="bento-card-header">
-              <span class="bento-time-tag">
-                🚗 ${firstTrip ? this.escapeHtml(firstTrip.city) : 'Caronas'}
-              </span>
-              <span style="font-size:1rem;">📍</span>
-            </div>
-            <div class="bento-card-title">
-              ${firstTrip ? (firstTrip.is_shared_ride ? 'Viagem Compartilhada' : 'Saída para ' + this.escapeHtml(firstTrip.city)) : 'Otimizador de Saídas'}
-            </div>
-            <div class="bento-card-subtitle">
-              ${firstTrip ? `${firstTrip.total_people} pessoa(s) • ${firstTrip.total_events} parada(s)` : 'Economize viagens e combustível'}
-            </div>
-          </div>
-          
-          <div class="bento-graphic-area">
-            <svg class="bento-illustration-svg" viewBox="0 0 140 55" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="10" y="32" width="120" height="4" rx="2" fill="#E8C9B0" />
-              <!-- Carro amigável estilizado -->
-              <rect x="35" y="14" width="70" height="24" rx="10" fill="#133834" />
-              <rect x="42" y="18" width="22" height="10" rx="3" fill="#EFA048" opacity="0.9" />
-              <rect x="68" y="18" width="22" height="10" rx="3" fill="#EFA048" opacity="0.9" />
-              <circle cx="48" cy="38" r="8" fill="#133834" stroke="#FFF1E3" stroke-width="3" />
-              <circle cx="92" cy="38" r="8" fill="#133834" stroke="#FFF1E3" stroke-width="3" />
-              <circle cx="48" cy="38" r="3" fill="#EFA048" />
-              <circle cx="92" cy="38" r="3" fill="#EFA048" />
-            </svg>
-          </div>
-        </div>
-
-        <!-- CARD 4: CARTÃO ESCURO (CLICK TO VIEW MORE / +SCHEDULE) -->
-        <div class="bento-card bento-card-dark" onclick="App.switchTab('consultas')">
-          <div style="font-size: 1.6rem; margin-bottom: 0.35rem;">🗓️</div>
-          <div class="dark-card-title">Ver toda a agenda</div>
-          <div class="dark-card-count">+${totalRemaining > 0 ? totalRemaining : '3'} compromissos</div>
-          <span style="font-size:0.75rem; color:#9dbdb8; margin-top:0.4rem; display:block;">Toque para abrir →</span>
-        </div>
-
-      </div>
+      <!-- FILTROS EM PÍLULA HORIZONTAL (TELA 3 / 5) -->
+      ${this.getCategoryPillsHtml()}
 
       <!-- ALERTA DE EXAMES PRONTOS PARA LEVAR -->
       ${readyExams.length > 0 ? `
-        <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-left:5px solid #10b981; border-radius:var(--radius-lg); padding:1.1rem; margin-bottom:1.25rem; box-shadow:var(--shadow-sm);">
-          <h3 style="color:#065f46; font-size:1rem; font-weight:800; display:flex; align-items:center; gap:0.4rem;">
+        <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-left:5px solid var(--accent-green); border-radius:var(--radius-lg); padding:1rem 1.15rem; margin-bottom:1.15rem; box-shadow:var(--shadow-sm);">
+          <h3 style="color:#065f46; font-size:0.95rem; font-weight:800; display:flex; align-items:center; gap:0.4rem; margin-bottom:0.25rem;">
             <span>✅</span> Exames Prontos para Levar na Consulta!
           </h3>
-          <p style="font-size:0.8rem; color:#047857; margin-top:0.2rem; margin-bottom:0.75rem;">
-            Estes laudos já estão prontos e devem ser entregues ao médico no retorno:
+          <p style="font-size:0.78rem; color:#047857; margin-bottom:0.65rem;">
+            Laudos concluídos que devem ser entregues ao médico no retorno:
           </p>
-          <div style="display:flex; flex-direction:column; gap:0.5rem;">
+          <div style="display:flex; flex-direction:column; gap:0.45rem;">
             ${readyExams.map(ex => `
-              <div style="background:#ffffff; border:1px solid #d1fae5; padding:0.75rem 0.9rem; border-radius:var(--radius-md); display:flex; justify-content:space-between; align-items:center;">
+              <div style="background:#ffffff; border:1px solid #d1fae5; padding:0.65rem 0.85rem; border-radius:var(--radius-md); display:flex; justify-content:space-between; align-items:center; gap:0.5rem;">
                 <div>
-                  <span class="person-badge" style="background-color:${ex.person_color};">${this.escapeHtml(ex.person_name)}</span>
-                  <strong style="font-size:0.92rem; color:var(--primary-spruce); display:block; margin-top:3px;">${this.escapeHtml(ex.exam_name)}</strong>
-                  <div style="font-size:0.78rem; color:#065f46; margin-top:2px;">
-                    🎯 Levar p/: <strong>${this.escapeHtml(ex.target_doctor_name || ex.target_specialty || 'Consulta')}</strong> 
+                  <span class="person-badge" style="background-color:${ex.person_color}; font-size:0.7rem; padding:2px 8px;">${this.escapeHtml(ex.person_name)}</span>
+                  <strong style="font-size:0.88rem; color:var(--text-title); display:block; margin-top:3px;">${this.escapeHtml(ex.exam_name)}</strong>
+                  <div style="font-size:0.75rem; color:#065f46; margin-top:2px;">
+                    🎯 Retorno: <strong>${this.escapeHtml(ex.target_doctor_name || ex.target_specialty || 'Consulta')}</strong> 
                     ${ex.target_appointment_date ? ` em ${this.formatDate(ex.target_appointment_date)}` : ''}
                   </div>
                 </div>
@@ -868,10 +942,11 @@ const App = {
         </div>
       ` : ''}
 
-      <!-- CABEÇALHO DA LISTA DE CONSULTAS -->
+      <!-- TÍTULO DA SEÇÃO DE COMPROMISSOS -->
       <div class="action-bar">
         <div class="action-bar-title">
-          <span>📅 Próximas Consultas Agendadas</span>
+          <span>📅 Compromissos & Agenda</span>
+          <span class="status-pill status-agendado">${upcoming.length}</span>
         </div>
         <button class="btn btn-sm btn-outline-primary" onclick="App.switchTab('consultas')">Ver Todas</button>
       </div>
@@ -879,12 +954,12 @@ const App = {
       ${upcoming.length === 0 ? `
         <div class="empty-state">
           <div class="empty-state-icon">🩺</div>
-          <h3>Nenhuma consulta agendada</h3>
-          <p>Toque no botão central (+) para agendar a primeira consulta da família.</p>
+          <h3>${q ? 'Nenhum resultado para a busca' : 'Nenhum compromisso pendente'}</h3>
+          <p>${q ? 'Tente buscar com outro termo ou limpe o campo.' : 'Toque no botão central (+) para agendar um compromisso.'}</p>
         </div>
       ` : `
         <div style="display:flex; flex-direction:column; gap:0.6rem;">
-          ${upcoming.slice(0, 4).map(app => this.getAppointmentCardHtml(app)).join('')}
+          ${upcoming.slice(0, 6).map(app => this.getAppointmentCardHtml(app)).join('')}
         </div>
       `}
     `;
@@ -893,13 +968,29 @@ const App = {
   },
 
   /* =========================================================================
-     ABA 3: AGENDA DE COMPROMISSOS (MÉDICO, INSS, BANCO, EXAMES)
+     ABA 3: AGENDA DE COMPROMISSOS (MÉDICO, INSS, BANCO, OUTROS)
      ========================================================================= */
   renderConsultasTab(container) {
-    let list = this.state.appointments;
-    if (this.state.selectedFamilyFilter !== 'all') {
-      list = list.filter(a => a.person_id == this.state.selectedFamilyFilter);
-    }
+    const q = this.state.searchQuery;
+    const catFilter = this.state.selectedCategoryFilter;
+    const personFilter = this.state.selectedFamilyFilter;
+
+    let list = this.state.appointments.filter(a => {
+      // Filtro de Pessoa
+      if (personFilter !== 'all' && a.person_id != personFilter) {
+        return false;
+      }
+      // Filtro de Categoria
+      if (catFilter !== 'all' && this.getAppointmentCategory(a) !== catFilter) {
+        return false;
+      }
+      // Filtro de Busca
+      if (q) {
+        const str = `${a.specialty || ''} ${a.doctor_name || ''} ${a.person_name || ''} ${a.city || ''} ${a.notes || ''}`.toLowerCase();
+        if (!str.includes(q)) return false;
+      }
+      return true;
+    });
 
     let html = `
       <div class="subnav-segmented">
@@ -910,6 +1001,10 @@ const App = {
           🔬 Pedidos de Exames (${this.state.exams.length})
         </button>
       </div>
+
+      ${this.getSearchBarHtml('Buscar compromisso, médico, banco...')}
+
+      ${this.getCategoryPillsHtml()}
 
       ${this.getFilterSelectHtml()}
 
@@ -928,8 +1023,8 @@ const App = {
       html += `
         <div class="empty-state">
           <div class="empty-state-icon">📅</div>
-          <h3>Nenhum compromisso cadastrado</h3>
-          <p>Agende consultas médicas, idas ao INSS, banco ou outras saídas.</p>
+          <h3>${q ? 'Nenhum resultado encontrado' : 'Nenhum compromisso cadastrado'}</h3>
+          <p>Cadastre consultas médicas, idas ao INSS, banco ou outras saídas.</p>
         </div>
       `;
     } else {
@@ -942,6 +1037,7 @@ const App = {
 
     container.innerHTML = html;
   },
+
 
   getAppointmentCardHtml(app) {
     const specLower = (app.specialty || '').toLowerCase();
@@ -1030,10 +1126,19 @@ const App = {
      ABA 4: EXAMES
      ========================================================================= */
   renderExamesTab(container) {
-    let list = this.state.exams;
-    if (this.state.selectedFamilyFilter !== 'all') {
-      list = list.filter(e => e.person_id == this.state.selectedFamilyFilter);
-    }
+    const q = this.state.searchQuery;
+    const personFilter = this.state.selectedFamilyFilter;
+
+    let list = this.state.exams.filter(e => {
+      if (personFilter !== 'all' && e.person_id != personFilter) {
+        return false;
+      }
+      if (q) {
+        const str = `${e.exam_name || ''} ${e.target_doctor_name || ''} ${e.target_specialty || ''} ${e.location_name || ''} ${e.city || ''} ${e.person_name || ''} ${e.result_notes || ''}`.toLowerCase();
+        if (!str.includes(q)) return false;
+      }
+      return true;
+    });
 
     let html = `
       <div class="subnav-segmented">
@@ -1044,6 +1149,8 @@ const App = {
           🔬 Pedidos de Exames (${this.state.exams.length})
         </button>
       </div>
+
+      ${this.getSearchBarHtml('Buscar exames, laudos, laboratório...')}
 
       ${this.getFilterSelectHtml()}
 
@@ -1062,8 +1169,8 @@ const App = {
       html += `
         <div class="empty-state">
           <div class="empty-state-icon">🔬</div>
-          <h3>Nenhum exame cadastrado</h3>
-          <p>Cadastre os exames pedidos pelos médicos.</p>
+          <h3>${q ? 'Nenhum exame encontrado' : 'Nenhum exame cadastrado'}</h3>
+          <p>Cadastre os exames pedidos pelos médicos para acompanhar laudos e retornos.</p>
         </div>
       `;
     } else {
@@ -1153,13 +1260,29 @@ const App = {
   },
 
   /* =========================================================================
-     ABA 5: REMÉDIOS
+     ABA 5: REMÉDIOS (ESTILO INVENTÁRIO COM STATUS PÍLULA)
      ========================================================================= */
   renderRemediosTab(container) {
-    let list = this.state.medications;
-    if (this.state.selectedFamilyFilter !== 'all') {
-      list = list.filter(m => m.person_id == this.state.selectedFamilyFilter);
-    }
+    const q = this.state.searchQuery;
+    const medFilter = this.state.selectedMedFilter;
+    const personFilter = this.state.selectedFamilyFilter;
+
+    let list = this.state.medications.filter(m => {
+      if (personFilter !== 'all' && m.person_id != personFilter) {
+        return false;
+      }
+      if (medFilter === 'comprar' && m.needs_purchase != 1) {
+        return false;
+      }
+      if (medFilter === 'em_dia' && m.needs_purchase != 0) {
+        return false;
+      }
+      if (q) {
+        const str = `${m.name || ''} ${m.dosage || ''} ${m.preferred_city || ''} ${m.instructions || ''} ${m.person_name || ''} ${m.notes || ''}`.toLowerCase();
+        if (!str.includes(q)) return false;
+      }
+      return true;
+    });
 
     const needsPurchase = list.filter(m => m.needs_purchase == 1);
     const stockOk = list.filter(m => m.needs_purchase == 0);
@@ -1174,11 +1297,15 @@ const App = {
         </button>
       </div>
 
+      ${this.getSearchBarHtml('Buscar remédio, dosagem, cidade...')}
+
+      ${this.getMedPillsHtml()}
+
       ${this.getFilterSelectHtml()}
 
       <div class="action-bar">
         <div class="action-bar-title">
-          <span>💊 Remédios</span>
+          <span>💊 Remédios da Família</span>
           ${needsPurchase.length > 0 ? `<span class="status-pill status-a-agendar">⚠️ ${needsPurchase.length} a comprar</span>` : ''}
         </div>
         <button class="btn btn-sm btn-primary" onclick="App.openModal('modal-medication')">
@@ -1191,16 +1318,16 @@ const App = {
       html += `
         <div class="empty-state">
           <div class="empty-state-icon">💊</div>
-          <h3>Nenhum remédio cadastrado</h3>
-          <p>Adicione os remédios de cada pessoa.</p>
+          <h3>${q ? 'Nenhum remédio encontrado' : 'Nenhum remédio cadastrado'}</h3>
+          <p>Cadastre os remédios e marque quando precisar comprar na farmácia.</p>
         </div>
       `;
     } else {
-      if (needsPurchase.length > 0) {
+      if (needsPurchase.length > 0 && (medFilter === 'all' || medFilter === 'comprar')) {
         html += `
           <div style="margin-bottom:1.25rem;">
-            <h3 style="font-size:1rem; font-weight:800; color:#b45309; margin-bottom:0.5rem;">
-              🛒 Falta Comprar (${needsPurchase.length})
+            <h3 style="font-size:0.95rem; font-weight:800; color:var(--accent-orange); margin-bottom:0.5rem; display:flex; align-items:center; gap:0.4rem;">
+              <span>🛒</span> Falta Comprar (${needsPurchase.length})
             </h3>
             <div style="display:flex; flex-direction:column; gap:0.5rem;">
               ${needsPurchase.map(m => this.getMedicationRowHtml(m)).join('')}
@@ -1209,11 +1336,11 @@ const App = {
         `;
       }
 
-      if (stockOk.length > 0) {
+      if (stockOk.length > 0 && (medFilter === 'all' || medFilter === 'em_dia')) {
         html += `
           <div>
-            <h3 style="font-size:1rem; font-weight:800; color:var(--text-main); margin-bottom:0.5rem;">
-              ✅ Em Dia (${stockOk.length})
+            <h3 style="font-size:0.95rem; font-weight:800; color:var(--text-title); margin-bottom:0.5rem; display:flex; align-items:center; gap:0.4rem;">
+              <span>✅</span> Em Estoque / Em Dia (${stockOk.length})
             </h3>
             <div style="display:flex; flex-direction:column; gap:0.5rem;">
               ${stockOk.map(m => this.getMedicationRowHtml(m)).join('')}
