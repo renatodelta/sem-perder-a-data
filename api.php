@@ -420,34 +420,34 @@ try {
             $pdo->exec("DELETE FROM appointments");
             $pdo->exec("DELETE FROM medications");
 
-            // Consultas
+            // Consultas e Compromissos nas Cidades da Região (Resende, Cruzeiro, Barreiro, etc.)
             if (isset($pMap['Ednéia'])) {
                 $stmt = $pdo->prepare("INSERT INTO appointments (person_id, doctor_name, specialty, location_name, city, appointment_date, appointment_time, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$pMap['Ednéia'], 'Dra. Camila Castro', 'Ginecologia / Rotina', 'Clínica Saúde Mulher', 'Campinas', $dateTrip1, '14:00', 'agendada', 'Levar exames anteriores']);
+                $stmt->execute([$pMap['Ednéia'], 'Dra. Camila Castro', 'Ginecologia / Rotina', 'Clínica da Mulher', 'Cruzeiro', $dateTrip1, '14:00', 'agendada', 'Levar exames anteriores']);
                 $appEdneia = $pdo->lastInsertId();
 
                 // Retorno da Ednéia
-                $stmt->execute([$pMap['Ednéia'], 'Dr. Roberto Mendes', 'Cardiologista (Retorno)', 'Hospital Vera Cruz', 'Campinas', $dateTrip2, '10:30', 'agendada', 'Consulta de retorno para mostrar ecocardiograma']);
+                $stmt->execute([$pMap['Ednéia'], 'Dr. Roberto Mendes', 'Cardiologista (Retorno)', 'Hospital São Camilo', 'Cruzeiro', $dateTrip2, '10:30', 'agendada', 'Consulta de retorno para mostrar ecocardiograma']);
                 $appRetornoEdneia = $pdo->lastInsertId();
 
                 // Exame da Ednéia para levar no retorno
                 $stmtEx = $pdo->prepare("INSERT INTO exams (person_id, exam_name, requested_by_appointment_id, target_appointment_id, exam_date, exam_time, location_name, city, status, result_notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmtEx->execute([$pMap['Ednéia'], 'Ecocardiograma com Doppler', null, $appRetornoEdneia, $dateTrip1, '10:00', 'EcoLab Campinas', 'Campinas', 'agendado', 'Pegar laudo logo após']);
+                $stmtEx->execute([$pMap['Ednéia'], 'Ecocardiograma com Doppler', null, $appRetornoEdneia, $dateTrip1, '10:00', 'EcoLab', 'Cruzeiro', 'agendado', 'Pegar laudo logo após']);
             }
 
             if (isset($pMap['Edyr'])) {
-                // Edyr tem exame no mesmo dia da Ednéia em Campinas! (Carona perfeita!)
+                // Edyr tem exame no mesmo dia da Ednéia em Cruzeiro! (Carona perfeita!)
                 $stmtEx = $pdo->prepare("INSERT INTO exams (person_id, exam_name, exam_date, exam_time, location_name, city, status, result_notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmtEx->execute([$pMap['Edyr'], 'Exame de Sangue em Jejum (Glicemia, Colesterol)', $dateTrip1, '08:30', 'Laboratório Pasteur', 'Campinas', 'agendado', 'Estar em jejum de 10 horas']);
+                $stmtEx->execute([$pMap['Edyr'], 'Exame de Sangue em Jejum (Glicemia, Colesterol)', $dateTrip1, '08:30', 'Laboratório Pasteur', 'Cruzeiro', 'agendado', 'Estar em jejum de 10 horas']);
 
                 // Edyr também tem uma consulta agendada
                 $stmt = $pdo->prepare("INSERT INTO appointments (person_id, doctor_name, specialty, location_name, city, appointment_date, appointment_time, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$pMap['Edyr'], 'Dr. Fernando Lira', 'Ortopedista', 'Clínica OrtoCenter', 'Campinas', $dateTrip2, '11:15', 'agendada', 'Avaliação do joelho direito']);
+                $stmt->execute([$pMap['Edyr'], 'Dr. Fernando Lira', 'Ortopedista', 'Clínica OrtoCenter', 'Cruzeiro', $dateTrip2, '11:15', 'agendada', 'Avaliação do joelho direito']);
             }
 
             if (isset($pMap['Mãe'])) {
                 $stmt = $pdo->prepare("INSERT INTO appointments (person_id, doctor_name, specialty, location_name, city, appointment_date, appointment_time, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$pMap['Mãe'], 'Dr. Marcos Silveira', 'Geriatra', 'Centro Médico Integrado', 'Campinas', $dateTrip1, '15:30', 'agendada', 'Acompanhar com lista de remédios']);
+                $stmt->execute([$pMap['Mãe'], 'Dr. Marcos Silveira', 'Geriatra', 'Centro Médico Integrado', 'Cruzeiro', $dateTrip1, '15:30', 'agendada', 'Acompanhar com lista de remédios']);
                 $appMae = $pdo->lastInsertId();
 
                 // Exame que a mãe precisa fazer
@@ -455,21 +455,29 @@ try {
                 $stmtEx->execute([$pMap['Mãe'], 'Densitometria Óssea', $appMae, 'a_agendar']);
             }
 
-            if (isset($pMap['Carlos Romeu'])) {
-                $stmt = $pdo->prepare("INSERT INTO appointments (person_id, doctor_name, specialty, location_name, city, appointment_date, appointment_time, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$pMap['Carlos Romeu'], 'Dr. Arnaldo Dias', 'Oftalmologista', 'Instituto dos Olhos', 'Campinas', $dateTrip2, '09:00', 'agendada', 'Exame de fundo de olho e óculos']);
-            }
-
             if (isset($pMap['Tia Mariazinha'])) {
+                // Compromisso no INSS em Resende
+                $stmt = $pdo->prepare("INSERT INTO appointments (person_id, doctor_name, specialty, location_name, city, appointment_date, appointment_time, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$pMap['Tia Mariazinha'], 'Agência INSS', 'INSS - Prova de Vida e Atualização', 'Posto do INSS Centro', 'Resende', $dateTrip1, '10:00', 'agendada', 'Levar documentos e comprovante de endereço']);
+
                 // Remédio da Tia Mariazinha para comprar
                 $stmtMed = $pdo->prepare("INSERT INTO medications (person_id, name, dosage, instructions, is_continuous, needs_purchase, preferred_city, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmtMed->execute([$pMap['Tia Mariazinha'], 'Losartana Potássica 50mg', '1 comprimido ao acordar', 'Tomar com água', 1, 1, 'Campinas', 'Comprar na Farmácia Popular']);
-                $stmtMed->execute([$pMap['Tia Mariazinha'], 'Omeprazol 20mg', '1 cápsula em jejum', 'Uso contínuo', 1, 0, 'Campinas', 'Estoque suficiente para 20 dias']);
+                $stmtMed->execute([$pMap['Tia Mariazinha'], 'Losartana Potássica 50mg', '1 comprimido ao acordar', 'Tomar com água', 1, 1, 'Resende', 'Comprar na Farmácia Popular']);
+                $stmtMed->execute([$pMap['Tia Mariazinha'], 'Omeprazol 20mg', '1 cápsula em jejum', 'Uso contínuo', 1, 0, 'Cruzeiro', 'Estoque suficiente para 20 dias']);
             }
 
             if (isset($pMap['Rogério'])) {
+                // Compromisso no Banco em Resende no mesmo dia
+                $stmt = $pdo->prepare("INSERT INTO appointments (person_id, doctor_name, specialty, location_name, city, appointment_date, appointment_time, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$pMap['Rogério'], 'Gerente Carlos', 'Banco do Brasil - Saque de Benefício', 'Agência Centro', 'Resende', $dateTrip1, '11:15', 'agendada', 'Aproveitar a mesma ida a Resende']);
+
                 $stmtMed = $pdo->prepare("INSERT INTO medications (person_id, name, dosage, instructions, is_continuous, needs_purchase, preferred_city, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmtMed->execute([$pMap['Rogério'], 'AAS Infantil 100mg', '1 comprimido após almoço', 'Uso contínuo', 1, 1, 'Campinas', 'Comprar caixa com 60']);
+                $stmtMed->execute([$pMap['Rogério'], 'AAS Infantil 100mg', '1 comprimido após almoço', 'Uso contínuo', 1, 1, 'Resende', 'Comprar caixa com 60']);
+            }
+
+            if (isset($pMap['Carlos Romeu'])) {
+                $stmt = $pdo->prepare("INSERT INTO appointments (person_id, doctor_name, specialty, location_name, city, appointment_date, appointment_time, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$pMap['Carlos Romeu'], 'Dr. Arnaldo Dias', 'Oftalmologista', 'Instituto dos Olhos', 'Cruzeiro', $dateTrip2, '09:00', 'agendada', 'Exame de fundo de olho e óculos']);
             }
 
             responseJson(['success' => true, 'message' => 'Exemplos práticos carregados com sucesso!']);

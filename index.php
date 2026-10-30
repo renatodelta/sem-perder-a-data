@@ -105,7 +105,7 @@
         </button>
       </div>
 
-      <!-- ABA 3: CONSULTAS & EXAMES -->
+      <!-- ABA 3: AGENDA (CONSULTAS, INSS, BANCO, EXAMES) -->
       <button class="bottom-nav-item" data-tab="consultas">
         <div class="nav-icon">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -115,7 +115,7 @@
           </svg>
           <span class="nav-badge-pill" id="badge-bottom-consultas" style="display:none;">0</span>
         </div>
-        <span class="nav-text">Consultas</span>
+        <span class="nav-text">Agenda</span>
         <span class="active-dot"></span>
       </button>
 
@@ -135,6 +135,20 @@
   </nav>
 
   <!-- =========================================================================
+       DATALIST DE CIDADES DA REGIÃO (SUGESTÕES AUTOMÁTICAS)
+       ========================================================================= -->
+  <datalist id="cities-list">
+    <option value="Resende"></option>
+    <option value="São José do Barreiro"></option>
+    <option value="Formoso"></option>
+    <option value="Cruzeiro"></option>
+    <option value="Arapeí"></option>
+    <option value="Bananal"></option>
+    <option value="Taubaté"></option>
+    <option value="São José dos Campos"></option>
+  </datalist>
+
+  <!-- =========================================================================
        BOTTOM SHEET RÁPIDO: "+ NOVO"
        ========================================================================= -->
   <div class="modal-overlay" id="modal-quick-new">
@@ -145,11 +159,11 @@
       </div>
       <div class="modal-body">
         <div class="sheet-options">
-          <div class="sheet-option-btn" onclick="App.closeAllModals(); App.openModal('modal-appointment')">
+          <div class="sheet-option-btn" onclick="App.closeAllModals(); App.openModal('modal-appointment', { category: 'saude' })">
             <div class="sheet-option-icon">🩺</div>
             <div class="sheet-option-text">
-              <h4>Nova Consulta Médica</h4>
-              <p>Marcar especialidade, médico, data, hora e cidade</p>
+              <h4>Novo Compromisso</h4>
+              <p>Consulta médica, INSS, Banco ou outra necessidade</p>
             </div>
           </div>
 
@@ -177,47 +191,59 @@
   </div>
 
   <!-- =========================================================================
-       MODAL 1: CONSULTA MÉDICA
+       MODAL 1: COMPROMISSO (CONSULTA, INSS, BANCO OU OUTRO)
        ========================================================================= -->
   <div class="modal-overlay" id="modal-appointment">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3 id="modal-app-title">Agendar Consulta Médica</h3>
+        <h3 id="modal-app-title">Agendar Compromisso</h3>
         <button class="modal-close-btn">&times;</button>
       </div>
       <form id="form-appointment" onsubmit="App.saveAppointmentForm(event)">
         <input type="hidden" id="app-id">
         <div class="modal-body">
+          
+          <!-- Seletor de Categoria Rápida -->
           <div class="form-group">
-            <label class="form-label">Para quem é a consulta? <span class="req">*</span></label>
+            <label class="form-label">Tipo de Compromisso</label>
+            <div class="category-pill-selector">
+              <button type="button" class="category-pill active" data-cat="saude" onclick="App.selectCommitmentCategory('saude')">🩺 Saúde / Médico</button>
+              <button type="button" class="category-pill" data-cat="inss" onclick="App.selectCommitmentCategory('inss')">🏛️ INSS</button>
+              <button type="button" class="category-pill" data-cat="banco" onclick="App.selectCommitmentCategory('banco')">🏦 Banco</button>
+              <button type="button" class="category-pill" data-cat="outro" onclick="App.selectCommitmentCategory('outro')">📋 Outro</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Para quem é o compromisso? <span class="req">*</span></label>
             <select id="app-person-id" class="form-control" required></select>
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">Especialidade <span class="req">*</span></label>
-              <input type="text" id="app-specialty" class="form-control" placeholder="Ex: Cardiologia, Oftalmo" required>
+              <label class="form-label" id="app-specialty-label">Especialidade / Assunto <span class="req">*</span></label>
+              <input type="text" id="app-specialty" class="form-control" placeholder="Ex: Cardiologia, Prova de vida, Saque benefício" required>
             </div>
             <div class="form-group">
-              <label class="form-label">Nome do Médico</label>
-              <input type="text" id="app-doctor" class="form-control" placeholder="Ex: Dr. Roberto">
+              <label class="form-label" id="app-doctor-label">Médico / Contato (Opcional)</label>
+              <input type="text" id="app-doctor" class="form-control" placeholder="Ex: Dr. Roberto, Gerente">
             </div>
           </div>
 
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Cidade <span class="req">*</span></label>
-              <input type="text" id="app-city" class="form-control" placeholder="Ex: Campinas" required>
+              <input type="text" id="app-city" list="cities-list" class="form-control" placeholder="Ex: Resende, Barreiro, Cruzeiro..." required>
             </div>
             <div class="form-group">
-              <label class="form-label">Clínica / Hospital</label>
-              <input type="text" id="app-location" class="form-control" placeholder="Ex: Vera Cruz">
+              <label class="form-label" id="app-location-label">Local / Clínica / Agência</label>
+              <input type="text" id="app-location" class="form-control" placeholder="Ex: Vera Cruz, Agência Centro">
             </div>
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">Data da Consulta <span class="req">*</span></label>
+              <label class="form-label">Data <span class="req">*</span></label>
               <input type="date" id="app-date" class="form-control" required>
             </div>
             <div class="form-group">
@@ -228,12 +254,12 @@
 
           <div class="form-group">
             <label class="form-label">Anotações / Instruções</label>
-            <textarea id="app-notes" class="form-control" placeholder="Ex: Levar exames anteriores..."></textarea>
+            <textarea id="app-notes" class="form-control" placeholder="Ex: Levar documentos, exames anteriores, cartão do banco..."></textarea>
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary btn-cancel-modal">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar Consulta</button>
+          <button type="submit" class="btn btn-primary">Salvar Compromisso</button>
         </div>
       </form>
     </div>
@@ -293,7 +319,7 @@
             </div>
             <div class="form-group">
               <label class="form-label">Cidade</label>
-              <input type="text" id="exam-city" class="form-control" placeholder="Ex: Campinas">
+              <input type="text" id="exam-city" list="cities-list" class="form-control" placeholder="Ex: Resende, Cruzeiro, Barreiro...">
             </div>
           </div>
 
@@ -350,7 +376,7 @@
 
           <div class="form-group">
             <label class="form-label">Cidade onde costuma comprar (Opcional)</label>
-            <input type="text" id="med-city" class="form-control" placeholder="Ex: Campinas (Farmácia Popular)">
+            <input type="text" id="med-city" list="cities-list" class="form-control" placeholder="Ex: Cruzeiro, Resende, Barreiro...">
           </div>
 
           <div class="form-group" style="background:#fef3c7; padding:0.75rem; border-radius:var(--radius-md); border:1px solid #fde68a;">

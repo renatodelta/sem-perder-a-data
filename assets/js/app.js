@@ -150,27 +150,39 @@ const App = {
           appointments: [
             {
               id: 1,
-              person_id: 1,
+              person_id: 2,
               doctor_name: 'Dr. Roberto Mendes',
-              specialty: 'Cardiologia',
-              location_name: 'Hospital Vera Cruz',
-              city: 'Campinas',
+              specialty: 'Cardiologia (Consulta de Rotina)',
+              location_name: 'Hospital São Camilo',
+              city: 'Cruzeiro',
               appointment_date: today,
-              appointment_time: '08:00',
+              appointment_time: '08:30',
               status: 'agendada',
-              notes: 'Levar exames anteriores'
+              notes: 'Levar exames anteriores e lista de remédios'
             },
             {
               id: 2,
-              person_id: 2,
-              doctor_name: 'Dra. Carla Silveira',
-              specialty: 'Oftalmologia',
-              location_name: 'Clínica de Olhos',
-              city: 'Campinas',
+              person_id: 6,
+              doctor_name: 'Agência INSS',
+              specialty: 'INSS - Prova de Vida e Atualização',
+              location_name: 'Posto do INSS Centro',
+              city: 'Resende',
               appointment_date: today,
-              appointment_time: '09:30',
+              appointment_time: '10:00',
               status: 'agendada',
-              notes: 'Exame de fundo de olho'
+              notes: 'Levar RG, CPF e comprovante de residência'
+            },
+            {
+              id: 3,
+              person_id: 5,
+              doctor_name: 'Gerente Carlos',
+              specialty: 'Banco do Brasil - Saque de Benefício',
+              location_name: 'Agência Centro',
+              city: 'Resende',
+              appointment_date: today,
+              appointment_time: '11:15',
+              status: 'agendada',
+              notes: 'Aproveitar a mesma ida a Resende'
             }
           ],
           exams: [
@@ -180,9 +192,9 @@ const App = {
               exam_name: 'Ecocardiograma com Doppler',
               target_appointment_id: 1,
               exam_date: today,
-              exam_time: '11:00',
+              exam_time: '09:45',
               location_name: 'Laboratório Pasteur',
-              city: 'Campinas',
+              city: 'Cruzeiro',
               status: 'pronto_levar',
               result_notes: 'Laudo pronto para levar ao cardiologista'
             }
@@ -190,12 +202,21 @@ const App = {
           medications: [
             {
               id: 1,
-              person_id: 1,
-              name: 'Losartana',
+              person_id: 6,
+              name: 'Losartana Potássica',
               dosage: '50mg',
-              instructions: '1x ao dia pela manhã',
+              instructions: '1 comprimido pela manhã',
               needs_purchase: 1,
-              preferred_city: 'Campinas'
+              preferred_city: 'Resende'
+            },
+            {
+              id: 2,
+              person_id: 2,
+              name: 'Omeprazol',
+              dosage: '20mg',
+              instructions: '1 cápsula em jejum',
+              needs_purchase: 0,
+              preferred_city: 'Cruzeiro'
             }
           ]
         };
@@ -389,27 +410,39 @@ const App = {
     data.appointments = [
       {
         id: 1,
-        person_id: 1,
+        person_id: 2,
         doctor_name: 'Dr. Roberto Mendes',
-        specialty: 'Cardiologia',
-        location_name: 'Hospital Vera Cruz',
-        city: 'Campinas',
+        specialty: 'Cardiologia (Consulta de Rotina)',
+        location_name: 'Hospital São Camilo',
+        city: 'Cruzeiro',
         appointment_date: today,
-        appointment_time: '08:00',
+        appointment_time: '08:30',
         status: 'agendada',
-        notes: 'Levar exames anteriores'
+        notes: 'Levar exames anteriores e lista de remédios'
       },
       {
         id: 2,
-        person_id: 2,
-        doctor_name: 'Dra. Carla Silveira',
-        specialty: 'Oftalmologia',
-        location_name: 'Clínica de Olhos',
-        city: 'Campinas',
+        person_id: 6,
+        doctor_name: 'Agência INSS',
+        specialty: 'INSS - Prova de Vida e Atualização',
+        location_name: 'Posto do INSS Centro',
+        city: 'Resende',
         appointment_date: today,
-        appointment_time: '09:30',
+        appointment_time: '10:00',
         status: 'agendada',
-        notes: 'Exame de fundo de olho'
+        notes: 'Levar RG, CPF e comprovante de residência'
+      },
+      {
+        id: 3,
+        person_id: 5,
+        doctor_name: 'Gerente Carlos',
+        specialty: 'Banco do Brasil - Saque de Benefício',
+        location_name: 'Agência Centro',
+        city: 'Resende',
+        appointment_date: today,
+        appointment_time: '11:15',
+        status: 'agendada',
+        notes: 'Aproveitar a mesma ida a Resende'
       }
     ];
     data.exams = [
@@ -419,9 +452,9 @@ const App = {
         exam_name: 'Ecocardiograma com Doppler',
         target_appointment_id: 1,
         exam_date: today,
-        exam_time: '11:00',
+        exam_time: '09:45',
         location_name: 'Laboratório Pasteur',
-        city: 'Campinas',
+        city: 'Cruzeiro',
         status: 'pronto_levar',
         result_notes: 'Laudo pronto para levar ao cardiologista'
       }
@@ -429,12 +462,21 @@ const App = {
     data.medications = [
       {
         id: 1,
-        person_id: 1,
-        name: 'Losartana',
+        person_id: 6,
+        name: 'Losartana Potássica',
         dosage: '50mg',
-        instructions: '1x ao dia pela manhã',
+        instructions: '1 comprimido pela manhã',
         needs_purchase: 1,
-        preferred_city: 'Campinas'
+        preferred_city: 'Resende'
+      },
+      {
+        id: 2,
+        person_id: 2,
+        name: 'Omeprazol',
+        dosage: '20mg',
+        instructions: '1 cápsula em jejum',
+        needs_purchase: 0,
+        preferred_city: 'Cruzeiro'
       }
     ];
     this.localDB.save(data);
@@ -851,7 +893,7 @@ const App = {
   },
 
   /* =========================================================================
-     ABA 3: CONSULTAS
+     ABA 3: AGENDA DE COMPROMISSOS (MÉDICO, INSS, BANCO, EXAMES)
      ========================================================================= */
   renderConsultasTab(container) {
     let list = this.state.appointments;
@@ -862,7 +904,7 @@ const App = {
     let html = `
       <div class="subnav-segmented">
         <button class="subnav-pill active" onclick="App.switchTab('consultas')">
-          🩺 Consultas Médicas (${this.state.appointments.length})
+          📅 Compromissos (${this.state.appointments.length})
         </button>
         <button class="subnav-pill" onclick="App.switchTab('exames')">
           🔬 Pedidos de Exames (${this.state.exams.length})
@@ -873,7 +915,7 @@ const App = {
 
       <div class="action-bar">
         <div class="action-bar-title">
-          <span>🩺 Consultas Médicas</span>
+          <span>📅 Agenda & Compromissos</span>
           <span class="status-pill status-agendado">${list.length}</span>
         </div>
         <button class="btn btn-sm btn-primary" onclick="App.openModal('modal-appointment')">
@@ -885,9 +927,9 @@ const App = {
     if (list.length === 0) {
       html += `
         <div class="empty-state">
-          <div class="empty-state-icon">🩺</div>
-          <h3>Nenhuma consulta cadastrada</h3>
-          <p>Toque em "+ Agendar" para marcar uma consulta.</p>
+          <div class="empty-state-icon">📅</div>
+          <h3>Nenhum compromisso cadastrado</h3>
+          <p>Agende consultas médicas, idas ao INSS, banco ou outras saídas.</p>
         </div>
       `;
     } else {
@@ -902,15 +944,35 @@ const App = {
   },
 
   getAppointmentCardHtml(app) {
+    const specLower = (app.specialty || '').toLowerCase();
+    let catIcon = '🩺';
+    let catTag = 'Médico';
+    let catClass = 'status-agendado';
+    if (specLower.includes('inss') || specLower.includes('previd') || specLower.includes('perícia')) {
+      catIcon = '🏛️';
+      catTag = 'INSS';
+      catClass = 'status-aguardando';
+    } else if (specLower.includes('banco') || specLower.includes('benefício') || specLower.includes('pagamento') || specLower.includes('saque') || specLower.includes('bradesco') || specLower.includes('brasil') || specLower.includes('caixa')) {
+      catIcon = '🏦';
+      catTag = 'Banco';
+      catClass = 'status-a-agendar';
+    } else if (specLower.includes('cartório') || specLower.includes('documento') || specLower.includes('mercado') || specLower.includes('compras')) {
+      catIcon = '📋';
+      catTag = 'Outro';
+    }
+
     return `
       <div class="item-card">
         <div class="item-card-header">
           <span class="person-badge" style="background-color: ${app.person_color};">
             👤 ${this.escapeHtml(app.person_name)}
           </span>
-          <span class="status-pill ${app.status === 'realizada' ? 'status-concluido' : 'status-agendado'}">
-            ${app.status === 'realizada' ? 'Concluída' : 'Agendada'}
-          </span>
+          <div style="display:flex; align-items:center; gap:0.35rem;">
+            <span class="status-pill ${catClass}" style="font-size:0.7rem;">${catIcon} ${catTag}</span>
+            <span class="status-pill ${app.status === 'realizada' ? 'status-concluido' : 'status-agendado'}">
+              ${app.status === 'realizada' ? 'Concluído' : 'Agendado'}
+            </span>
+          </div>
         </div>
 
         <div class="item-title">
@@ -941,7 +1003,7 @@ const App = {
         ${app.exams_to_bring_count > 0 ? `
           <div class="bring-to-appointment-box">
             <span>📋</span>
-            <div><strong>Atenção:</strong> Levar <strong>${app.exams_to_bring_count} exame(s)</strong> nesta consulta!</div>
+            <div><strong>Atenção:</strong> Levar <strong>${app.exams_to_bring_count} exame(s)</strong> neste compromisso!</div>
           </div>
         ` : ''}
 
@@ -951,7 +1013,7 @@ const App = {
               + Exame
             </button>
             <button class="btn btn-sm btn-secondary" onclick="App.toggleAppointmentStatus(${app.id}, '${app.status === 'realizada' ? 'agendada' : 'realizada'}')">
-              ${app.status === 'realizada' ? 'Reabrir' : 'Realizada'}
+              ${app.status === 'realizada' ? 'Reabrir' : 'Concluído'}
             </button>
           </div>
 
@@ -1296,9 +1358,66 @@ const App = {
     });
   },
 
-  openModal(modalId) {
+  selectCommitmentCategory(cat = 'saude') {
+    document.querySelectorAll('.category-pill').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.cat === cat);
+    });
+
+    const modalTitle = document.getElementById('modal-app-title');
+    const specialtyLabel = document.getElementById('app-specialty-label');
+    const specialtyInput = document.getElementById('app-specialty');
+    const doctorLabel = document.getElementById('app-doctor-label');
+    const doctorInput = document.getElementById('app-doctor');
+    const locationLabel = document.getElementById('app-location-label');
+    const locationInput = document.getElementById('app-location');
+
+    if (cat === 'inss') {
+      if (modalTitle) modalTitle.textContent = '🏛️ Compromisso no INSS / Previdência';
+      if (specialtyLabel) specialtyLabel.innerHTML = 'Motivo / Serviço no INSS <span class="req">*</span>';
+      if (specialtyInput) specialtyInput.placeholder = 'Ex: Prova de vida, Perícia médica, Agendamento';
+      if (doctorLabel) doctorLabel.textContent = 'Perito / Atendente (Opcional)';
+      if (doctorInput) doctorInput.placeholder = 'Ex: Perícia com Dr. Marcos';
+      if (locationLabel) locationLabel.textContent = 'Posto / Agência do INSS';
+      if (locationInput) locationInput.placeholder = 'Ex: Agência INSS Centro';
+    } else if (cat === 'banco') {
+      if (modalTitle) modalTitle.textContent = '🏦 Compromisso no Banco / Pagamento';
+      if (specialtyLabel) specialtyLabel.innerHTML = 'Assunto no Banco <span class="req">*</span>';
+      if (specialtyInput) specialtyInput.placeholder = 'Ex: Saque de benefício, Prova de vida, Cartão';
+      if (doctorLabel) doctorLabel.textContent = 'Gerente / Caixa (Opcional)';
+      if (doctorInput) doctorInput.placeholder = 'Ex: Gerente Carlos, Caixa 02';
+      if (locationLabel) locationLabel.textContent = 'Banco / Agência';
+      if (locationInput) locationInput.placeholder = 'Ex: Banco do Brasil, Bradesco, Caixa Econômica';
+    } else if (cat === 'outro') {
+      if (modalTitle) modalTitle.textContent = '📋 Outro Compromisso / Necessidade';
+      if (specialtyLabel) specialtyLabel.innerHTML = 'Descrição do Compromisso <span class="req">*</span>';
+      if (specialtyInput) specialtyInput.placeholder = 'Ex: Cartório de Notas, Mercado, Documentos';
+      if (doctorLabel) doctorLabel.textContent = 'Contato / Responsável (Opcional)';
+      if (doctorInput) doctorInput.placeholder = 'Ex: Tabelião, Atendente';
+      if (locationLabel) locationLabel.textContent = 'Local / Estabelecimento';
+      if (locationInput) locationInput.placeholder = 'Ex: Cartório Central, Poupatempo';
+    } else {
+      if (modalTitle) modalTitle.textContent = '🩺 Agendar Consulta Médica';
+      if (specialtyLabel) specialtyLabel.innerHTML = 'Especialidade Médica <span class="req">*</span>';
+      if (specialtyInput) specialtyInput.placeholder = 'Ex: Cardiologia, Oftalmo, Geriatra, Clínico';
+      if (doctorLabel) doctorLabel.textContent = 'Nome do Médico';
+      if (doctorInput) doctorInput.placeholder = 'Ex: Dr. Roberto Mendes';
+      if (locationLabel) locationLabel.textContent = 'Clínica / Hospital';
+      if (locationInput) locationInput.placeholder = 'Ex: Santa Casa, Hospital Vera Cruz';
+    }
+  },
+
+  openModal(modalId, options = {}) {
     const modal = document.getElementById(modalId);
-    if (modal) modal.classList.add('active');
+    if (!modal) return;
+    if (modalId === 'modal-appointment') {
+      const cat = options.category || 'saude';
+      this.selectCommitmentCategory(cat);
+      if (!options.isEdit) {
+        document.getElementById('form-appointment').reset();
+        document.getElementById('app-id').value = '';
+      }
+    }
+    modal.classList.add('active');
   },
 
   closeAllModals() {
@@ -1369,6 +1488,16 @@ const App = {
   editAppointment(id) {
     const app = this.state.appointments.find(a => a.id == id);
     if (!app) return;
+    const specLower = (app.specialty || '').toLowerCase();
+    let cat = 'saude';
+    if (specLower.includes('inss') || specLower.includes('previd') || specLower.includes('perícia')) {
+      cat = 'inss';
+    } else if (specLower.includes('banco') || specLower.includes('benefício') || specLower.includes('pagamento') || specLower.includes('saque')) {
+      cat = 'banco';
+    } else if (specLower.includes('cartório') || specLower.includes('documento') || specLower.includes('mercado')) {
+      cat = 'outro';
+    }
+    this.openModal('modal-appointment', { isEdit: true, category: cat });
     document.getElementById('app-id').value = app.id;
     document.getElementById('app-person-id').value = app.person_id;
     document.getElementById('app-specialty').value = app.specialty;
@@ -1378,7 +1507,6 @@ const App = {
     document.getElementById('app-date').value = app.appointment_date;
     document.getElementById('app-time').value = app.appointment_time || '';
     document.getElementById('app-notes').value = app.notes || '';
-    this.openModal('modal-appointment');
   },
 
   async deleteAppointment(id) {

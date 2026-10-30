@@ -1227,6 +1227,45 @@ html, body {
   margin-bottom: 1.05rem;
 }
 
+/* Seletor de Categorias no Modal */
+.category-pill-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+}
+
+.category-pill {
+  flex: 1;
+  min-width: 95px;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--spruce-border);
+  background: var(--bg-canvas);
+  color: var(--primary-spruce);
+  cursor: pointer;
+  text-align: center;
+  transition: var(--transition);
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.category-pill:hover {
+  background: #ffffff;
+}
+
+.category-pill.active {
+  background: var(--primary-spruce);
+  color: #ffffff;
+  border-color: var(--primary-spruce);
+  box-shadow: 0 2px 8px rgba(19, 56, 52, 0.2);
+}
+
 .form-row {
   display: flex;
   gap: 0.75rem;
