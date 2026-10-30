@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Sem Perder a Data - Saúde & Logística</title>
-  <meta name="description" content="Aplicativo da Ednéia para organização de consultas, exames vinculados a retornos, remédios e caronas da família.">
+  <title>Família em Dia - Saúde & Cuidados</title>
+  <meta name="description" content="Família em Dia: aplicativo da Ednéia para organização de consultas, exames vinculados a retornos, remédios e caronas da família.">
   
   <!-- Configurações PWA (Instalável no Celular) -->
   <link rel="manifest" href="manifest.json">
@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Zelo Familiar">
+  <meta name="apple-mobile-web-app-title" content="Família em Dia">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
   
@@ -22,7 +22,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- Estilos Mobile-First Ocean Teal -->
-  <link rel="stylesheet" href="assets/css/style.css?v=5">
+  <link rel="stylesheet" href="assets/css/style.css?v=6">
 </head>
 <body>
 
@@ -34,8 +34,8 @@
           👩‍⚕️
         </div>
         <div class="user-greeting-text">
-          <span class="user-greeting-sub">Olá, Cuidadora 👋</span>
-          <h1 class="user-greeting-name">Ednéia • Zelo</h1>
+          <span class="user-greeting-sub">Olá, Ednéia 👋</span>
+          <h1 class="user-greeting-name">Família em Dia</h1>
         </div>
       </div>
       
@@ -409,6 +409,6 @@
   </div>
 
   <!-- Scripts -->
-  <script src="assets/js/app.js?v=5"></script>
+  <script src="assets/js/app.js?v=6"></script>
 </body>
 </html>

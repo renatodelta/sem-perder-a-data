@@ -74,8 +74,8 @@ html, body {
 .header-app {
   background: linear-gradient(180deg, #00838f 0%, #0097a7 100%);
   color: #ffffff;
-  padding: 1.25rem 1.35rem 2.2rem 1.35rem;
-  border-radius: 0 0 32px 32px;
+  padding: 1rem 1.35rem 1.35rem 1.35rem;
+  border-radius: 0 0 24px 24px;
   box-shadow: var(--shadow-curved-header);
   position: sticky;
   top: 0;
@@ -157,24 +157,26 @@ html, body {
 }
 
 /* =========================================================================
-   ÁREA PRINCIPAL DE CONTEÚDO (SOBREPÕE SUAVEMENTE A CURVA)
+   ÁREA PRINCIPAL DE CONTEÚDO (ESPAÇAMENTO PERFEITO ABAIXO DO HEADER)
    ========================================================================= */
 .main-wrapper {
   max-width: 600px;
-  margin: -1.2rem auto 0 auto;
-  padding: 0 1.15rem 115px 1.15rem;
+  margin: 0 auto;
+  padding: 1.25rem 1.15rem 115px 1.15rem;
   position: relative;
   z-index: 10;
 }
 
 /* =========================================================================
-   BARRA DE BUSCA COM BOTÃO DE FILTRO (IDÊNTICA À TELA 4 E 5)
+   BARRA DE BUSCA COM BOTÃO DE FILTRO (NUNCA TAMPADA, 100% VISÍVEL)
    ========================================================================= */
 .search-filter-bar {
   display: flex;
   align-items: center;
   gap: 0.65rem;
   margin-bottom: 1.15rem;
+  position: relative;
+  z-index: 5;
 }
 
 .search-input-wrapper {
@@ -184,26 +186,36 @@ html, body {
   align-items: center;
 }
 
+.search-icon,
 .search-icon-inside {
   position: absolute;
   left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
   color: var(--text-muted);
   font-size: 1rem;
+  line-height: 1;
   pointer-events: none;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .search-input {
   width: 100%;
-  padding: 0.75rem 1rem 0.75rem 2.6rem;
+  height: 48px;
+  padding: 0 1rem 0 2.75rem;
   background: #ffffff;
   border: 1px solid var(--teal-border);
   border-radius: var(--radius-lg);
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-family: inherit;
   color: var(--text-main);
   box-shadow: var(--shadow-sm);
   outline: none;
   transition: var(--transition);
+  box-sizing: border-box;
 }
 
 .search-input:focus {
@@ -212,12 +224,12 @@ html, body {
 }
 
 .btn-search-filter {
-  width: 46px;
-  height: 46px;
+  width: 48px;
+  height: 48px;
   background: var(--primary-teal);
   color: #ffffff;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;

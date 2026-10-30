@@ -1,11 +1,11 @@
-// sw.js - Service Worker Seguro para PWA (Sem erros de ERR_FAILED)
-const CACHE_NAME = 'sem-perder-a-data-v5';
+// sw.js - Service Worker Seguro para PWA (Família em Dia)
+const CACHE_NAME = 'familia-em-dia-v6';
 const CORE_ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './assets/css/style.css?v=5',
-  './assets/js/app.js?v=5',
+  './assets/css/style.css?v=6',
+  './assets/js/app.js?v=6',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png'
 ];

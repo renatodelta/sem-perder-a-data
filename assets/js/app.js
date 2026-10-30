@@ -1,6 +1,6 @@
 /**
- * Sem Perder a Data - JavaScript da Aplicação
- * Versão Mobile Otimizada com Menu Inferior (Bottom Bar) e Zero Rolagem Lateral
+ * Família em Dia - JavaScript da Aplicação
+ * Gestão de Saúde, Exames, Remédios e Viagens Regionais da Ednéia
  */
 
 let deferredInstallPrompt = null;
@@ -1914,7 +1914,7 @@ const App = {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `backup_sem_perder_a_data_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `backup_familia_em_dia_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
     this.showToast('Backup baixado!', 'success');

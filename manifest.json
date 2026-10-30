@@ -1,12 +1,12 @@
 {
-  "name": "Sem Perder a Data",
-  "short_name": "Sem Perder",
+  "name": "Família em Dia",
+  "short_name": "Família em Dia",
   "description": "Gestão de Saúde, Consultas, Exames, Remédios e Viagens da Ednéia",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0d9488",
-  "theme_color": "#0d9488",
+  "background_color": "#008b9e",
+  "theme_color": "#008b9e",
   "orientation": "portrait",
   "icons": [
     {

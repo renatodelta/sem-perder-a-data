@@ -1,7 +1,7 @@
-# 🌊 Zelo Familiar • Sem Perder a Data
+# 🌊 Família em Dia
 
 > **Aplicativo móvel e PWA de gestão de cuidados familiares, logística regional de saídas e controle de medicação.**  
-> Projetado especialmente para cuidadores que gerenciam a saúde e compromissos de entes queridos em múltiplas cidades da região.
+> Projetado especialmente para a cuidadora Ednéia gerenciar a saúde e os compromissos de entes queridos em múltiplas cidades da região.
 
 ---
 
@@ -9,7 +9,7 @@
 
 O sistema adota uma interface moderna baseada no **UI Kit Ocean Teal (8 telas)**, com foco em ergonomia no celular:
 
-* **Header Curvo Ocean Teal (`#008b9e`)**: Topo curvo com saudação personalizada (*Ednéia • Zelo*), avatar e atalho de perfil.
+* **Header Curvo Ocean Teal (`#008b9e`)**: Topo curvo com saudação personalizada (*Ednéia • Família em Dia*), avatar e atalho de perfil.
 * **Barra de Pesquisa e Filtros**: Campo de busca rápida com botão teal para novos agendamentos e filtros horizontais em pílula (*Todos, 🩺 Saúde, 🏛️ INSS, 🏦 Banco, 📋 Outro*).
 * **Card de Estatísticas com Donut Chart**: Gráfico circular SVG interativo demonstrando consultas agendadas (verde), laudos/exames prontos para retorno (ciano) e remédios a comprar (laranja).
 * **Otimizador Regional de Caronas e Saídas**: Agrupamento inteligente de consultas e exames na mesma data e cidade para economizar deslocamentos e combustível.
