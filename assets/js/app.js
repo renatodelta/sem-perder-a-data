@@ -15,7 +15,7 @@ const App = {
     medications: [],
     trips: [],
     summary: {},
-    currentTab: 'logistica',
+    currentTab: 'dashboard',
     selectedFamilyFilter: 'all',
     currentDate: new Date().toISOString().split('T')[0]
   },
@@ -324,10 +324,60 @@ const App = {
   switchTab(tabName) {
     this.state.currentTab = tabName;
     document.querySelectorAll('.bottom-nav-item').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.tab === tabName);
+      let isActive = btn.dataset.tab === tabName;
+      if (tabName === 'exames' && btn.dataset.tab === 'consultas') isActive = true;
+      if (tabName === 'familiares' && btn.dataset.tab === 'remedios') isActive = true;
+      btn.classList.toggle('active', isActive);
     });
     this.renderCurrentTab();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  },
+
+  seedSamples(force = false) {
+    if (this.state.appointments.length > 0 && !force) return;
+    const today = new Date().toISOString().split('T')[0];
+    const data = this.localDB.get() || {};
+    data.appointments = [
+      {
+        id: 1,
+        person_id: 1,
+        doctor_name: 'Dr. Roberto',
+        specialty: 'Cardiologia',
+        location_name: 'Hospital Vera Cruz',
+        city: 'Campinas',
+        appointment_date: today,
+        appointment_time: '08:00',
+        status: 'agendada',
+        notes: 'Levar exames anteriores'
+      },
+      {
+        id: 2,
+        person_id: 2,
+        doctor_name: 'Dra. Carla',
+        specialty: 'Oftalmologia',
+        location_name: 'Clínica de Olhos',
+        city: 'Campinas',
+        appointment_date: today,
+        appointment_time: '09:30',
+        status: 'agendada',
+        notes: 'Exame de fundo de olho'
+      }
+    ];
+    data.exams = [
+      {
+        id: 1,
+        person_id: 1,
+        exam_name: 'Ecocardiograma',
+        target_appointment_id: 1,
+        exam_date: today,
+        exam_time: '11:00',
+        location_name: 'Laboratório Pasteur',
+        city: 'Campinas',
+        status: 'pronto_levar',
+        result_notes: 'Laudo pronto para levar ao cardiologista'
+      }
+    ];
+    this.localDB.save(data);
   },
 
   updateBadges() {
@@ -525,87 +575,213 @@ const App = {
   },
 
   /* =========================================================================
-     ABA 2: PAINEL GERAL
+     ABA 2: PAINEL GERAL (INSPIRADO NO DESIGN DE REFERÊNCIA)
      ========================================================================= */
   renderDashboardTab(container) {
     const s = this.state.summary;
     const today = this.state.currentDate;
 
-    const upcoming = this.state.appointments.filter(a => a.status === 'agendada' && a.appointment_date >= today).slice(0, 5);
+    const upcoming = this.state.appointments.filter(a => a.status === 'agendada' && a.appointment_date >= today);
     const readyExams = this.state.exams.filter(e => e.status === 'pronto_levar');
+    const trips = this.state.trips || [];
+
+    // Primeiro compromisso (Card 1 Bento)
+    const firstApp = upcoming.length > 0 ? upcoming[0] : (this.state.appointments[0] || null);
+
+    // Segundo compromisso / Exame (Card 2 Bento)
+    const firstExam = this.state.exams.length > 0 ? this.state.exams[0] : null;
+
+    // Viagem / Carona (Card 3 Bento)
+    const firstTrip = trips.length > 0 ? trips[0] : null;
+
+    // Cálculo dinâmico de progresso da saúde & saídas (padrão 80% como no anexo)
+    const totalItems = this.state.appointments.length + this.state.exams.length;
+    const completedItems = this.state.appointments.filter(a => a.status === 'realizada').length + readyExams.length;
+    let progressPercent = 80;
+    if (totalItems > 0) {
+      progressPercent = Math.min(100, Math.max(30, Math.round(((completedItems + 2) / (totalItems + 2)) * 100)));
+    }
+    const strokeDash = 251.2;
+    const strokeOffset = strokeDash * (1 - progressPercent / 100);
+
+    const totalRemaining = Math.max(0, this.state.appointments.length + this.state.exams.length - 2);
 
     let html = `
-      <div class="summary-cards-grid">
-        <div class="stat-card" onclick="App.switchTab('consultas')">
-          <div class="stat-icon primary">🩺</div>
-          <div class="stat-info">
-            <div class="stat-number">${s.week_appointments || 0}</div>
-            <div class="stat-label">Consultas na Semana</div>
-          </div>
+      <!-- HERO CARD COM MEDIDOR CIRCULAR (LAYOUT DA IMAGEM) -->
+      <div class="hero-progress-card">
+        <div class="hero-content">
+          <span class="hero-chip">✨ Saúde & Família</span>
+          <h2 class="hero-title">Tudo sob controle com seus agendamentos</h2>
+          <p class="hero-subtitle">Exames vinculados a retornos e caronas organizadas</p>
+          <button class="hero-btn" onclick="App.openNewSheet()">
+            <span>+ Novo Agendamento</span>
+          </button>
         </div>
-
-        <div class="stat-card" onclick="App.switchTab('logistica')">
-          <div class="stat-icon purple">🚗</div>
-          <div class="stat-info">
-            <div class="stat-number">${s.shared_trips_count || 0}</div>
-            <div class="stat-label">Caronas / Viagens</div>
-          </div>
-        </div>
-
-        <div class="stat-card" onclick="App.switchTab('exames')">
-          <div class="stat-icon success">🔬</div>
-          <div class="stat-info">
-            <div class="stat-number">${s.exams_ready_to_bring || 0}</div>
-            <div class="stat-label">Exames Prontos</div>
-          </div>
-        </div>
-
-        <div class="stat-card" onclick="App.switchTab('remedios')">
-          <div class="stat-icon warning">💊</div>
-          <div class="stat-info">
-            <div class="stat-number">${s.meds_to_buy || 0}</div>
-            <div class="stat-label">Remédios a Comprar</div>
+        <div class="hero-gauge-box">
+          <div class="gauge-circle">
+            <svg viewBox="0 0 100 100" class="gauge-svg">
+              <circle class="gauge-bg" cx="50" cy="50" r="40" />
+              <circle class="gauge-fill" cx="50" cy="50" r="40" style="stroke-dasharray: ${strokeDash}; stroke-dashoffset: ${strokeOffset};" />
+            </svg>
+            <div class="gauge-value">
+              <span class="gauge-num">${progressPercent}%</span>
+              <span class="gauge-label">Em dia</span>
+            </div>
           </div>
         </div>
       </div>
 
+      <!-- TÍTULO DE SEÇÃO "TODAY'S SCHEDULE" -->
+      <div class="section-schedule-header">
+        <h3 class="section-schedule-title">Compromissos & Agenda</h3>
+        <span class="schedule-date-badge">📅 Hoje & Próximos</span>
+      </div>
+
+      <!-- GRID BENTO ASSIMÉTRICO (4 CARTÕES INSPIRADOS NO LAYOUT) -->
+      <div class="bento-schedule-grid">
+        
+        <!-- CARD 1: CARTÃO BRANCO (CONSULTA MÉDICA) -->
+        <div class="bento-card bento-card-white" onclick="${firstApp ? `App.switchTab('consultas')` : `App.openModal('modal-appointment')`}">
+          <div>
+            <div class="bento-card-header">
+              <span class="bento-time-tag">
+                ⏰ ${firstApp && firstApp.appointment_time ? firstApp.appointment_time.substring(0, 5) : '08:00'}
+              </span>
+              <span style="font-size:1rem;">🩺</span>
+            </div>
+            <div class="bento-card-title">
+              ${firstApp ? this.escapeHtml(firstApp.specialty) : 'Consulta Médica'}
+            </div>
+            <div class="bento-card-subtitle">
+              ${firstApp ? (firstApp.doctor_name ? this.escapeHtml(firstApp.doctor_name) : this.escapeHtml(firstApp.city)) : 'Toque p/ agendar'}
+            </div>
+          </div>
+          <div>
+            ${firstApp ? `
+              <span class="bento-person-chip" style="background-color: ${firstApp.person_color};">
+                👤 ${this.escapeHtml(firstApp.person_name)}
+              </span>
+            ` : `
+              <span class="bento-person-chip" style="background-color: var(--primary-spruce);">
+                + Agendar
+              </span>
+            `}
+          </div>
+        </div>
+
+        <!-- CARD 2: CARTÃO PEACH (EXAME / RETORNO) -->
+        <div class="bento-card bento-card-peach" onclick="${firstExam ? `App.switchTab('exames')` : `App.openModal('modal-exam')`}">
+          <div>
+            <div class="bento-card-header">
+              <span class="bento-time-tag">
+                🔬 ${firstExam && firstExam.exam_time ? firstExam.exam_time.substring(0, 5) : '09:30'}
+              </span>
+              <span style="font-size:1rem;">📋</span>
+            </div>
+            <div class="bento-card-title">
+              ${firstExam ? this.escapeHtml(firstExam.exam_name) : 'Pedido de Exame'}
+            </div>
+            <div class="bento-card-subtitle">
+              ${firstExam ? (firstExam.target_doctor_name || firstExam.target_specialty ? '🎯 Retorno: ' + this.escapeHtml(firstExam.target_doctor_name || firstExam.target_specialty) : this.escapeHtml(firstExam.location_name || 'Laboratório')) : 'Vincule ao retorno'}
+            </div>
+          </div>
+          <div>
+            ${firstExam ? `
+              <span class="status-pill ${firstExam.status === 'pronto_levar' ? 'status-pronto' : 'status-agendado'}" style="margin-top:0.4rem;">
+                ${firstExam.status === 'pronto_levar' ? '✅ Pronto p/ Retorno' : 'Acompanhar'}
+              </span>
+            ` : `
+              <span class="status-pill status-agendado" style="margin-top:0.4rem;">+ Novo Exame</span>
+            `}
+          </div>
+        </div>
+
+        <!-- CARD 3: CARTÃO PEACH ALTO COM GRÁFICO (VIAGEM / CARONA) -->
+        <div class="bento-card bento-card-illustrated" onclick="App.switchTab('logistica')">
+          <div>
+            <div class="bento-card-header">
+              <span class="bento-time-tag">
+                🚗 ${firstTrip ? this.escapeHtml(firstTrip.city) : 'Caronas'}
+              </span>
+              <span style="font-size:1rem;">📍</span>
+            </div>
+            <div class="bento-card-title">
+              ${firstTrip ? (firstTrip.is_shared_ride ? 'Viagem Compartilhada' : 'Saída para ' + this.escapeHtml(firstTrip.city)) : 'Otimizador de Saídas'}
+            </div>
+            <div class="bento-card-subtitle">
+              ${firstTrip ? `${firstTrip.total_people} pessoa(s) • ${firstTrip.total_events} parada(s)` : 'Economize viagens e combustível'}
+            </div>
+          </div>
+          
+          <div class="bento-graphic-area">
+            <svg class="bento-illustration-svg" viewBox="0 0 140 55" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="10" y="32" width="120" height="4" rx="2" fill="#E8C9B0" />
+              <!-- Carro amigável estilizado -->
+              <rect x="35" y="14" width="70" height="24" rx="10" fill="#133834" />
+              <rect x="42" y="18" width="22" height="10" rx="3" fill="#EFA048" opacity="0.9" />
+              <rect x="68" y="18" width="22" height="10" rx="3" fill="#EFA048" opacity="0.9" />
+              <circle cx="48" cy="38" r="8" fill="#133834" stroke="#FFF1E3" stroke-width="3" />
+              <circle cx="92" cy="38" r="8" fill="#133834" stroke="#FFF1E3" stroke-width="3" />
+              <circle cx="48" cy="38" r="3" fill="#EFA048" />
+              <circle cx="92" cy="38" r="3" fill="#EFA048" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- CARD 4: CARTÃO ESCURO (CLICK TO VIEW MORE / +SCHEDULE) -->
+        <div class="bento-card bento-card-dark" onclick="App.switchTab('consultas')">
+          <div style="font-size: 1.6rem; margin-bottom: 0.35rem;">🗓️</div>
+          <div class="dark-card-title">Ver toda a agenda</div>
+          <div class="dark-card-count">+${totalRemaining > 0 ? totalRemaining : '3'} compromissos</div>
+          <span style="font-size:0.75rem; color:#9dbdb8; margin-top:0.4rem; display:block;">Toque para abrir →</span>
+        </div>
+
+      </div>
+
+      <!-- ALERTA DE EXAMES PRONTOS PARA LEVAR -->
       ${readyExams.length > 0 ? `
-        <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-left:4px solid #10b981; border-radius:var(--radius-md); padding:1rem; margin-bottom:1rem;">
-          <h3 style="color:#065f46; font-size:1rem; font-weight:800;">
-            ✅ Exames Prontos para Levar!
+        <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-left:5px solid #10b981; border-radius:var(--radius-lg); padding:1.1rem; margin-bottom:1.25rem; box-shadow:var(--shadow-sm);">
+          <h3 style="color:#065f46; font-size:1rem; font-weight:800; display:flex; align-items:center; gap:0.4rem;">
+            <span>✅</span> Exames Prontos para Levar na Consulta!
           </h3>
-          <div style="display:flex; flex-direction:column; gap:0.4rem; margin-top:0.5rem;">
+          <p style="font-size:0.8rem; color:#047857; margin-top:0.2rem; margin-bottom:0.75rem;">
+            Estes laudos já estão prontos e devem ser entregues ao médico no retorno:
+          </p>
+          <div style="display:flex; flex-direction:column; gap:0.5rem;">
             ${readyExams.map(ex => `
-              <div style="background:#ffffff; border:1px solid #d1fae5; padding:0.6rem 0.8rem; border-radius:var(--radius-sm); display:flex; justify-content:space-between; align-items:center;">
+              <div style="background:#ffffff; border:1px solid #d1fae5; padding:0.75rem 0.9rem; border-radius:var(--radius-md); display:flex; justify-content:space-between; align-items:center;">
                 <div>
                   <span class="person-badge" style="background-color:${ex.person_color};">${this.escapeHtml(ex.person_name)}</span>
-                  <strong style="font-size:0.9rem;">${this.escapeHtml(ex.exam_name)}</strong>
+                  <strong style="font-size:0.92rem; color:var(--primary-spruce); display:block; margin-top:3px;">${this.escapeHtml(ex.exam_name)}</strong>
                   <div style="font-size:0.78rem; color:#065f46; margin-top:2px;">
-                    🎯 Levar no retorno: <strong>${this.escapeHtml(ex.target_doctor_name || ex.target_specialty || 'Consulta')}</strong> 
+                    🎯 Levar p/: <strong>${this.escapeHtml(ex.target_doctor_name || ex.target_specialty || 'Consulta')}</strong> 
                     ${ex.target_appointment_date ? ` em ${this.formatDate(ex.target_appointment_date)}` : ''}
                   </div>
                 </div>
-                <button class="btn btn-sm btn-secondary" onclick="App.markExamDone(${ex.id})">Entregue</button>
+                <button class="btn btn-sm btn-success" onclick="App.markExamDone(${ex.id})">Entregue</button>
               </div>
             `).join('')}
           </div>
         </div>
       ` : ''}
 
+      <!-- CABEÇALHO DA LISTA DE CONSULTAS -->
       <div class="action-bar">
         <div class="action-bar-title">
-          <span>📅 Próximas Consultas</span>
+          <span>📅 Próximas Consultas Agendadas</span>
         </div>
         <button class="btn btn-sm btn-outline-primary" onclick="App.switchTab('consultas')">Ver Todas</button>
       </div>
 
       ${upcoming.length === 0 ? `
         <div class="empty-state">
-          <p>Nenhuma consulta agendada.</p>
+          <div class="empty-state-icon">🩺</div>
+          <h3>Nenhuma consulta agendada</h3>
+          <p>Toque no botão central (+) para agendar a primeira consulta da família.</p>
         </div>
       ` : `
         <div style="display:flex; flex-direction:column; gap:0.6rem;">
-          ${upcoming.map(app => this.getAppointmentCardHtml(app)).join('')}
+          ${upcoming.slice(0, 4).map(app => this.getAppointmentCardHtml(app)).join('')}
         </div>
       `}
     `;
@@ -623,6 +799,15 @@ const App = {
     }
 
     let html = `
+      <div class="subnav-segmented">
+        <button class="subnav-pill active" onclick="App.switchTab('consultas')">
+          🩺 Consultas Médicas (${this.state.appointments.length})
+        </button>
+        <button class="subnav-pill" onclick="App.switchTab('exames')">
+          🔬 Pedidos de Exames (${this.state.exams.length})
+        </button>
+      </div>
+
       ${this.getFilterSelectHtml()}
 
       <div class="action-bar">
@@ -728,6 +913,15 @@ const App = {
     }
 
     let html = `
+      <div class="subnav-segmented">
+        <button class="subnav-pill" onclick="App.switchTab('consultas')">
+          🩺 Consultas Médicas (${this.state.appointments.length})
+        </button>
+        <button class="subnav-pill active" onclick="App.switchTab('exames')">
+          🔬 Pedidos de Exames (${this.state.exams.length})
+        </button>
+      </div>
+
       ${this.getFilterSelectHtml()}
 
       <div class="action-bar">
@@ -848,6 +1042,15 @@ const App = {
     const stockOk = list.filter(m => m.needs_purchase == 0);
 
     let html = `
+      <div class="subnav-segmented">
+        <button class="subnav-pill active" onclick="App.switchTab('remedios')">
+          💊 Farmácia & Remédios (${this.state.medications.length})
+        </button>
+        <button class="subnav-pill" onclick="App.switchTab('familiares')">
+          👥 Familiares (${this.state.persons.length})
+        </button>
+      </div>
+
       ${this.getFilterSelectHtml()}
 
       <div class="action-bar">
@@ -934,6 +1137,15 @@ const App = {
      ========================================================================= */
   renderPessoasTab(container) {
     let html = `
+      <div class="subnav-segmented">
+        <button class="subnav-pill" onclick="App.switchTab('remedios')">
+          💊 Farmácia & Remédios (${this.state.medications.length})
+        </button>
+        <button class="subnav-pill active" onclick="App.switchTab('familiares')">
+          👥 Familiares (${this.state.persons.length})
+        </button>
+      </div>
+
       <div class="action-bar">
         <div class="action-bar-title">
           <span>👥 As 6 Pessoas da Família</span>

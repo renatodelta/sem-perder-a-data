@@ -8,7 +8,7 @@
   
   <!-- Configurações PWA (Instalável no Celular) -->
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0d9488">
+  <meta name="theme-color" content="#133834">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -26,37 +26,34 @@
 </head>
 <body>
 
-  <!-- CABEÇALHO SUPERIOR COMPACTO -->
+  <!-- CABEÇALHO SUPERIOR MODERNO (INSPIRADO NO DESIGN DE REFERÊNCIA) -->
   <header class="header-app">
     <div class="header-container">
-      <div class="logo-area">
-        <div class="logo-icon">🩺</div>
-        <div class="logo-text">
-          <h1>Sem Perder a Data</h1>
-          <p>Painel da Ednéia</p>
-        </div>
+      <div class="greeting-box">
+        <span class="greeting-badge">Olá, Ednéia 👋</span>
+        <h1 class="greeting-title">Sem Perder <span class="highlight-text">a Data</span></h1>
       </div>
       
       <div class="header-actions">
-        <!-- Botão de Instalar no Celular -->
-        <button class="btn-header btn-install-pwa" onclick="App.promptInstall()" style="display:none; background:#f59e0b; border-color:#d97706;">
-          <span>📲 Instalar</span>
+        <!-- Botão de Instalar no Celular PWA -->
+        <button class="btn-header-icon btn-install-pwa" onclick="App.promptInstall()" style="display:none;" title="Instalar Aplicativo no Celular">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
         </button>
 
-        <!-- Botão Rápido de Pessoas -->
-        <button class="btn-header" onclick="App.switchTab('familiares')">
-          <span>👥 Pessoas</span>
-        </button>
-
-        <!-- Botão + Novo -->
-        <button class="btn-header" onclick="App.openNewSheet()" style="background:#ffffff; color:var(--primary); font-weight:800;">
-          <span>+ Novo</span>
+        <!-- Botão Rápido de Familiares -->
+        <button class="btn-header-pill" onclick="App.switchTab('familiares')" title="Gerenciar Familiares">
+          <span class="pill-dot"></span>
+          <span>👥 Familiares</span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- ÁREA DE CONTEÚDO PRINCIPAL (COM ESPAÇO PARA A BARRA INFERIOR) -->
+  <!-- ÁREA DE CONTEÚDO PRINCIPAL (COM ESPAÇO PARA A BARRA FLUTUANTE) -->
   <main class="main-wrapper">
     <div id="tab-content-area">
       <!-- O conteúdo será injetado dinamicamente pelo app.js -->
@@ -64,46 +61,75 @@
   </main>
 
   <!-- =========================================================================
-       MENU INFERIOR FIXO (BOTTOM NAVIGATION BAR)
-       Sem rolagem lateral! Todos os 5 botões cabem perfeitamente na tela do celular
+       MENU INFERIOR FLUTUANTE (BOTTOM NAVIGATION BAR)
+       Com 4 abas + Botão Central Elevado (+) em Dourado Idêntico ao Layout
        ========================================================================= -->
   <nav class="bottom-nav-bar">
     <div class="bottom-nav-container">
-      <button class="bottom-nav-item active" data-tab="logistica">
+      <!-- ABA 1: PAINEL / INÍCIO -->
+      <button class="bottom-nav-item active" data-tab="dashboard">
         <div class="nav-icon">
-          🚗
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="3" y="3" width="7" height="7" rx="2.5"></rect>
+            <rect x="14" y="3" width="7" height="7" rx="2.5"></rect>
+            <rect x="3" y="14" width="7" height="7" rx="2.5"></rect>
+            <rect x="14" y="14" width="7" height="7" rx="2.5"></rect>
+          </svg>
+        </div>
+        <span class="nav-text">Painel</span>
+        <span class="active-dot"></span>
+      </button>
+
+      <!-- ABA 2: VIAGENS / CARONAS -->
+      <button class="bottom-nav-item" data-tab="logistica">
+        <div class="nav-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path>
+            <circle cx="7" cy="17" r="2"></circle>
+            <path d="M9 17h6"></path>
+            <circle cx="17" cy="17" r="2"></circle>
+          </svg>
           <span class="nav-badge-pill" id="badge-bottom-trips" style="display:none;">0</span>
         </div>
         <span class="nav-text">Viagens</span>
+        <span class="active-dot"></span>
       </button>
 
-      <button class="bottom-nav-item" data-tab="dashboard">
-        <div class="nav-icon">📋</div>
-        <span class="nav-text">Painel</span>
-      </button>
+      <!-- BOTÃO CENTRAL ELEVADO FAB (+) EM DOURADO/AMBER -->
+      <div class="bottom-nav-fab-wrapper">
+        <button class="bottom-nav-fab" onclick="App.openNewSheet()" aria-label="Adicionar Novo Agendamento" title="Novo Agendamento">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+      </div>
 
+      <!-- ABA 3: CONSULTAS & EXAMES -->
       <button class="bottom-nav-item" data-tab="consultas">
         <div class="nav-icon">
-          🩺
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
           <span class="nav-badge-pill" id="badge-bottom-consultas" style="display:none;">0</span>
         </div>
         <span class="nav-text">Consultas</span>
+        <span class="active-dot"></span>
       </button>
 
-      <button class="bottom-nav-item" data-tab="exames">
-        <div class="nav-icon">
-          🔬
-          <span class="nav-badge-pill" id="badge-bottom-exames" style="display:none;">0</span>
-        </div>
-        <span class="nav-text">Exames</span>
-      </button>
-
+      <!-- ABA 4: REMÉDIOS & FAMÍLIA -->
       <button class="bottom-nav-item" data-tab="remedios">
         <div class="nav-icon">
-          💊
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
           <span class="nav-badge-pill" id="badge-bottom-remedios" style="display:none;">0</span>
         </div>
         <span class="nav-text">Remédios</span>
+        <span class="active-dot"></span>
       </button>
     </div>
   </nav>
