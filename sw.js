@@ -1,11 +1,11 @@
 // sw.js - Service Worker Seguro para PWA (Sem erros de ERR_FAILED)
-const CACHE_NAME = 'sem-perder-a-data-v2';
+const CACHE_NAME = 'sem-perder-a-data-v4';
 const CORE_ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './assets/css/style.css',
-  './assets/js/app.js',
+  './assets/css/style.css?v=4',
+  './assets/js/app.js?v=4',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png'
 ];

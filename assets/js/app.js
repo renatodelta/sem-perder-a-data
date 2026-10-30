@@ -136,7 +136,8 @@ const App = {
 
     init() {
       let data = this.get();
-      if (!data) {
+      if (!data || !data.appointments || data.appointments.length === 0) {
+        const today = new Date().toISOString().split('T')[0];
         data = {
           persons: [
             { id: 1, name: 'Ednéia', color: '#8b5cf6' },
@@ -146,9 +147,57 @@ const App = {
             { id: 5, name: 'Rogério', color: '#ea580c' },
             { id: 6, name: 'Tia Mariazinha', color: '#0891b2' }
           ],
-          appointments: [],
-          exams: [],
-          medications: []
+          appointments: [
+            {
+              id: 1,
+              person_id: 1,
+              doctor_name: 'Dr. Roberto Mendes',
+              specialty: 'Cardiologia',
+              location_name: 'Hospital Vera Cruz',
+              city: 'Campinas',
+              appointment_date: today,
+              appointment_time: '08:00',
+              status: 'agendada',
+              notes: 'Levar exames anteriores'
+            },
+            {
+              id: 2,
+              person_id: 2,
+              doctor_name: 'Dra. Carla Silveira',
+              specialty: 'Oftalmologia',
+              location_name: 'Clínica de Olhos',
+              city: 'Campinas',
+              appointment_date: today,
+              appointment_time: '09:30',
+              status: 'agendada',
+              notes: 'Exame de fundo de olho'
+            }
+          ],
+          exams: [
+            {
+              id: 1,
+              person_id: 1,
+              exam_name: 'Ecocardiograma com Doppler',
+              target_appointment_id: 1,
+              exam_date: today,
+              exam_time: '11:00',
+              location_name: 'Laboratório Pasteur',
+              city: 'Campinas',
+              status: 'pronto_levar',
+              result_notes: 'Laudo pronto para levar ao cardiologista'
+            }
+          ],
+          medications: [
+            {
+              id: 1,
+              person_id: 1,
+              name: 'Losartana',
+              dosage: '50mg',
+              instructions: '1x ao dia pela manhã',
+              needs_purchase: 1,
+              preferred_city: 'Campinas'
+            }
+          ]
         };
         this.save(data);
       }
@@ -333,7 +382,7 @@ const App = {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   },
 
-  seedSamples(force = false) {
+  async seedSamples(force = false) {
     if (this.state.appointments.length > 0 && !force) return;
     const today = new Date().toISOString().split('T')[0];
     const data = this.localDB.get() || {};
@@ -341,7 +390,7 @@ const App = {
       {
         id: 1,
         person_id: 1,
-        doctor_name: 'Dr. Roberto',
+        doctor_name: 'Dr. Roberto Mendes',
         specialty: 'Cardiologia',
         location_name: 'Hospital Vera Cruz',
         city: 'Campinas',
@@ -353,7 +402,7 @@ const App = {
       {
         id: 2,
         person_id: 2,
-        doctor_name: 'Dra. Carla',
+        doctor_name: 'Dra. Carla Silveira',
         specialty: 'Oftalmologia',
         location_name: 'Clínica de Olhos',
         city: 'Campinas',
@@ -367,7 +416,7 @@ const App = {
       {
         id: 1,
         person_id: 1,
-        exam_name: 'Ecocardiograma',
+        exam_name: 'Ecocardiograma com Doppler',
         target_appointment_id: 1,
         exam_date: today,
         exam_time: '11:00',
@@ -377,7 +426,19 @@ const App = {
         result_notes: 'Laudo pronto para levar ao cardiologista'
       }
     ];
+    data.medications = [
+      {
+        id: 1,
+        person_id: 1,
+        name: 'Losartana',
+        dosage: '50mg',
+        instructions: '1x ao dia pela manhã',
+        needs_purchase: 1,
+        preferred_city: 'Campinas'
+      }
+    ];
     this.localDB.save(data);
+    await this.loadData();
   },
 
   updateBadges() {

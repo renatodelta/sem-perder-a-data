@@ -22,7 +22,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- Estilos Mobile-First -->
-  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/style.css?v=4">
 </head>
 <body>
 
@@ -374,6 +374,6 @@
   </div>
 
   <!-- Scripts -->
-  <script src="assets/js/app.js"></script>
+  <script src="assets/js/app.js?v=4"></script>
 </body>
 </html>
