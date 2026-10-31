@@ -644,14 +644,14 @@ const App = {
   },
 
   /* =========================================================================
-     ABA 1: VIAGENS & CARONA
+     ABA 1: VIAGENS E CARONA
      ========================================================================= */
   renderLogisticaTab(container) {
     const trips = this.state.trips;
 
     let html = `
       <div class="logistics-hero-banner">
-        <div class="banner-tag">🚗 Carona & Economia</div>
+        <div class="banner-tag">🚗 Carona e Economia</div>
         <h2 class="banner-title">Otimizador de Saídas da Ednéia</h2>
         <p class="banner-desc">
           O sistema agrupa quem tem consulta ou exame na mesma cidade e data para economizar viagens e tempo!
@@ -766,7 +766,7 @@ const App = {
   },
 
   /* =========================================================================
-     ABA 2: PAINEL GERAL (DESIGN OCEAN TEAL COM DONUT CHART & FILTROS)
+     ABA 2: PAINEL GERAL (DESIGN OCEAN TEAL COM DONUT CHART E FILTROS)
      ========================================================================= */
   renderDashboardTab(container) {
     const s = this.state.summary;
@@ -832,7 +832,7 @@ const App = {
     const readyExams = this.state.exams.filter(e => e.status === 'pronto_levar');
 
     let html = `
-      <!-- BARRA DE PESQUISA & BOTÃO DE AÇÃO TEAL -->
+      <!-- BARRA DE PESQUISA E BOTÃO DE AÇÃO TEAL -->
       ${this.getSearchBarHtml('Buscar consulta, exame, pessoa...')}
 
       <!-- CARD DE ESTATÍSTICAS COM DONUT CHART (TELA 4) -->
@@ -945,7 +945,7 @@ const App = {
       <!-- TÍTULO DA SEÇÃO DE COMPROMISSOS -->
       <div class="action-bar">
         <div class="action-bar-title">
-          <span>📅 Compromissos & Agenda</span>
+          <span>📅 Compromissos e Agenda</span>
           <span class="status-pill status-agendado">${upcoming.length}</span>
         </div>
         <button class="btn btn-sm btn-outline-primary" onclick="App.switchTab('consultas')">Ver Todas</button>
@@ -1010,7 +1010,7 @@ const App = {
 
       <div class="action-bar">
         <div class="action-bar-title">
-          <span>📅 Agenda & Compromissos</span>
+          <span>📅 Agenda e Compromissos</span>
           <span class="status-pill status-agendado">${list.length}</span>
         </div>
         <button class="btn btn-sm btn-primary" onclick="App.openModal('modal-appointment')">
@@ -1156,7 +1156,7 @@ const App = {
 
       <div class="action-bar">
         <div class="action-bar-title">
-          <span>🔬 Exames & Retornos</span>
+          <span>🔬 Exames e Retornos</span>
           <span class="status-pill status-agendado">${list.length}</span>
         </div>
         <button class="btn btn-sm btn-primary" onclick="App.openModal('modal-exam')">
@@ -1290,7 +1290,7 @@ const App = {
     let html = `
       <div class="subnav-segmented">
         <button class="subnav-pill active" onclick="App.switchTab('remedios')">
-          💊 Farmácia & Remédios (${this.state.medications.length})
+          💊 Farmácia e Remédios (${this.state.medications.length})
         </button>
         <button class="subnav-pill" onclick="App.switchTab('familiares')">
           👥 Familiares (${this.state.persons.length})
@@ -1389,7 +1389,7 @@ const App = {
     let html = `
       <div class="subnav-segmented">
         <button class="subnav-pill" onclick="App.switchTab('remedios')">
-          💊 Farmácia & Remédios (${this.state.medications.length})
+          💊 Farmácia e Remédios (${this.state.medications.length})
         </button>
         <button class="subnav-pill active" onclick="App.switchTab('familiares')">
           👥 Familiares (${this.state.persons.length})
@@ -1458,7 +1458,7 @@ const App = {
   },
 
   /* =========================================================================
-     POPULAR SELECTS & HELPERS
+     POPULAR SELECTS E HELPERS
      ========================================================================= */
   populatePersonSelects() {
     const selects = ['app-person-id', 'exam-person-id', 'med-person-id'];

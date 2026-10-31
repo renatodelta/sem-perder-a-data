@@ -431,7 +431,7 @@ html, body {
 }
 
 /* =========================================================================
-   CARTÕES DE COMPROMISSO, SAÍDA & REMÉDIOS (CLEAN WHITE)
+   CARTÕES DE COMPROMISSO, SAÍDA E REMÉDIOS (CLEAN WHITE)
    ========================================================================= */
 .item-card {
   background: var(--bg-card);
@@ -960,7 +960,7 @@ html, body {
 }
 
 /* =========================================================================
-   MODAIS & BOTTOM SHEETS
+   MODAIS E BOTTOM SHEETS
    ========================================================================= */
 .modal-overlay {
   position: fixed;

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Família em Dia - Saúde & Cuidados</title>
+  <title>Família em Dia - Saúde e Cuidados</title>
   <meta name="description" content="Família em Dia: aplicativo da Ednéia para organização de consultas, exames vinculados a retornos, remédios e caronas da família.">
   
   <!-- Configurações PWA (Instalável no Celular) -->
@@ -128,7 +128,7 @@
         <span class="active-dot"></span>
       </button>
 
-      <!-- ABA 4: REMÉDIOS & FAMÍLIA -->
+      <!-- ABA 4: REMÉDIOS E FAMÍLIA -->
       <button class="bottom-nav-item" data-tab="remedios">
         <div class="nav-icon">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">

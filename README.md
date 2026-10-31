@@ -5,7 +5,7 @@
 
 ---
 
-## 📱 Visão Geral & Design Ocean Teal
+## 📱 Visão Geral e Design Ocean Teal
 
 O sistema adota uma interface moderna baseada no **UI Kit Ocean Teal (8 telas)**, com foco em ergonomia no celular:
 
@@ -47,7 +47,7 @@ O aplicativo foi calibrado para o cuidado dedicado de 6 membros da família, cad
 ## 🛠️ Tecnologias Utilizadas
 
 * **Front-end**: HTML5 semântico, CSS3 moderno (Variáveis CSS, Flexbox, CSS Grid, SVG responsivo) e JavaScript Vanilla puro.
-* **Back-end & Persistência**: 
+* **Back-end e Persistência**: 
   - Suporte a PHP + SQLite para execução local (XAMPP).
   - Suporte a Cloudflare Workers / D1 para deploy em nuvem.
   - Modo Local Storage com sincronização automática e suporte total a PWA Offline.
