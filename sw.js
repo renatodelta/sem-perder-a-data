@@ -1,5 +1,5 @@
 // sw.js - Service Worker Seguro para PWA (Família em Dia)
-const CACHE_NAME = 'familia-em-dia-v6';
+const CACHE_NAME = 'familia-em-dia-v7';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -62,5 +62,60 @@ self.addEventListener('fetch', (event) => {
           }
         });
       })
+  );
+});
+
+// Suporte a Notificações Push e Cliques na Notificação
+self.addEventListener('push', (event) => {
+  let data = {
+    title: '🔔 Família em Dia - Lembrete',
+    body: 'Você tem um compromisso agendado para as próximas 24h!',
+    icon: 'assets/icons/icon-192.png',
+    badge: 'assets/icons/icon-192.png',
+    data: { url: './' }
+  };
+
+  if (event.data) {
+    try {
+      const json = event.data.json();
+      data = Object.assign(data, json);
+    } catch (e) {
+      data.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: data.icon || 'assets/icons/icon-192.png',
+    badge: data.badge || 'assets/icons/icon-192.png',
+    vibrate: [200, 100, 200, 100, 200],
+    data: data.data || { url: './' },
+    actions: [
+      { action: 'open', title: '👀 Ver Detalhes' }
+    ]
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || './';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes('sem-perder-a-data') || client.url.includes(self.location.origin)) {
+          if ('focus' in client) {
+            return client.focus();
+          }
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
   );
 });

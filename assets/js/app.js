@@ -93,6 +93,61 @@ const App = {
     });
   },
 
+  async requestNotificationPermission() {
+    if (!('Notification' in window)) {
+      alert('Seu navegador ou aparelho não possui suporte a Notificações Web.');
+      return false;
+    }
+
+    if (Notification.permission === 'granted') {
+      return true;
+    }
+
+    if (Notification.permission !== 'denied') {
+      const permission = await Notification.requestPermission();
+      return permission === 'granted';
+    }
+
+    alert('As notificações estão bloqueadas no seu navegador. Ative as permissões nas configurações do site no seu navegador.');
+    return false;
+  },
+
+  async testLocalNotification() {
+    try {
+      const granted = await this.requestNotificationPermission();
+      if (!granted) {
+        this.showToast('Permissão de notificação negada.', 'warning');
+        return;
+      }
+
+      this.showToast('🔔 Notificação agendada para daqui a 5 segundos! Minimize o app ou bloqueie a tela.', 'info');
+
+      // Aguarda 5 segundos para que o usuário possa fechar/minimizar a tela e ver o alerta do celular
+      setTimeout(async () => {
+        const title = '🩺 Lembrete: Consulta de Ednéia amanhã!';
+        const options = {
+          body: '📍 Cardiologia com Dr. Roberto em Cruzeiro às 14:00 (Faltam 24h). Não se esqueça dos exames!',
+          icon: 'assets/icons/icon-192.png',
+          badge: 'assets/icons/icon-192.png',
+          vibrate: [200, 100, 200, 100, 200],
+          tag: 'test-reminder',
+          renotify: true,
+          data: { url: './' }
+        };
+
+        if ('serviceWorker' in navigator) {
+          const reg = await navigator.serviceWorker.ready;
+          reg.showNotification(title, options);
+        } else {
+          new Notification(title, options);
+        }
+      }, 5000);
+    } catch (e) {
+      console.error('Erro ao disparar notificação:', e);
+      alert('Erro ao disparar notificação: ' + e.message);
+    }
+  },
+
   async promptInstall() {
     if (deferredInstallPrompt) {
       deferredInstallPrompt.prompt();
