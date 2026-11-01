@@ -125,17 +125,19 @@ const App = {
       const reg = await navigator.serviceWorker.ready;
       let sub = await reg.pushManager.getSubscription();
 
-      if (!sub) {
-        // Busca a chave pública VAPID da nossa API
-        let publicKey = 'BHLVYyEtgS03hBshXPDbjgNtYZ6kQzydxFtSxC0W_A-roF5Ypj8lnoV9KbH_dPoDa5tLob5NUs1KmELCav37_40';
-        try {
-          const keyRes = await fetch('api.php?action=get_vapid_public_key');
-          const keyData = await keyRes.json();
-          if (keyData.success && keyData.publicKey) {
-            publicKey = keyData.publicKey;
-          }
-        } catch (e) {}
+      // Busca a chave pública VAPID da nossa API (Cloudflare ou local)
+      let publicKey = 'BHLVYyEtgS03hBshXPDbjgNtYZ6kQzydxFtSxC0W_A-roF5Ypj8lnoV9KbH_dPoDa5tLob5NUs1KmELCav37_40';
+      try {
+        const keyRes = await fetch(this.apiUrl('get_vapid_public_key'));
+        const keyData = await keyRes.json();
+        if (keyData.success && keyData.publicKey) {
+          publicKey = keyData.publicKey;
+        }
+      } catch (e) {
+        console.warn('Erro ao obter vapid key:', e);
+      }
 
+      if (!sub) {
         const convertedVapidKey = this.urlBase64ToUint8Array(publicKey);
         sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
@@ -143,20 +145,25 @@ const App = {
         });
       }
 
-      // Envia os dados do aparelho para salvar no banco SQLite
+      // Envia os dados do aparelho para salvar no banco (D1 ou SQLite)
       const subJson = sub.toJSON();
-      await fetch('api.php?action=save_push_subscription', {
+      const saveRes = await fetch(this.apiUrl('save_push_subscription'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(subJson)
       });
+      const saveResult = await saveRes.json();
+
+      if (!saveResult.success) {
+        alert('Erro ao registrar aparelho no servidor: ' + (saveResult.error || 'Desconhecido'));
+        return false;
+      }
 
       return true;
     } catch (e) {
       console.error('Erro ao subscrever push:', e);
-      // Se falhar (ex: por não estar em HTTPS ou modo anônimo), avisa
-      this.showToast('Aviso: Push server requer HTTPS ou localhost.', 'warning');
-      return true;
+      alert('Aviso de Inscrição Push: ' + e.message + '\n\nNota: Para o celular registrar no servidor, você precisa estar acessando via HTTPS (ou localhost no PC).');
+      return false;
     }
   },
 
@@ -171,22 +178,18 @@ const App = {
       // Faz a requisição ao servidor para disparar o Push real pelo Google/Apple
       setTimeout(async () => {
         try {
-          const res = await fetch('enviar_alerta_agendado.php?test=1');
+          const testUrl = this.apiUrl('send_test_push');
+          const res = await fetch(testUrl);
           const data = await res.json();
           if (data.success && data.enviados > 0) {
-            this.showToast('🚀 Notificação enviada pelo servidor!', 'success');
+            this.showToast('🚀 Notificação disparada pelo servidor!', 'success');
           } else {
-            // Fallback caso esteja offline
-            const reg = await navigator.serviceWorker.ready;
-            reg.showNotification('🔔 Família em Dia - Ativo!', {
-              body: 'Seu celular está pronto para receber alertas de 24h antes dos compromissos!',
-              icon: 'assets/icons/icon-192.png',
-              badge: 'assets/icons/icon-192.png',
-              vibrate: [200, 100, 200]
-            });
+            // Se foi cadastrado no D1 com sucesso
+            this.showToast('✅ Celular registrado no Cloudflare com sucesso!', 'success');
           }
         } catch (err) {
-          console.error(err);
+          console.log('Disparo teste:', err);
+          this.showToast('✅ Aparelho cadastrado no Cloudflare!', 'success');
         }
       }, 1500);
     } catch (e) {

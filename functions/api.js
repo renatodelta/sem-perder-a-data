@@ -349,6 +349,58 @@ export async function onRequest(context) {
         return new Response(JSON.stringify({ success: true }), { headers });
       }
 
+      // 6. NOTIFICAÇÕES PUSH (VAPID / DISPOSITIVOS)
+      case 'get_vapid_public_key': {
+        const publicKey = env.VAPID_PUBLIC_KEY || 'BHLVYyEtgS03hBshXPDbjgNtYZ6kQzydxFtSxC0W_A-roF5Ypj8lnoV9KbH_dPoDa5tLob5NUs1KmELCav37_40';
+        return new Response(JSON.stringify({ success: true, publicKey }), { headers });
+      }
+
+      case 'save_push_subscription': {
+        const endpoint = input.endpoint || '';
+        const p256dh = input.keys?.p256dh || '';
+        const auth = input.keys?.auth || '';
+        const userAgent = request.headers.get('user-agent') || '';
+
+        if (!endpoint || !p256dh || !auth) {
+          return new Response(JSON.stringify({ error: 'Dados da inscrição inválidos' }), { status: 400, headers });
+        }
+
+        // Garante que a tabela existe
+        await db.prepare(`
+          CREATE TABLE IF NOT EXISTS push_subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            endpoint TEXT NOT NULL UNIQUE,
+            p256dh TEXT NOT NULL,
+            auth TEXT NOT NULL,
+            user_agent TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `).run();
+
+        // Insere ou atualiza o aparelho
+        await db.prepare(`
+          INSERT INTO push_subscriptions (endpoint, p256dh, auth, user_agent, updated_at)
+          VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(endpoint) DO UPDATE SET
+            p256dh = excluded.p256dh,
+            auth = excluded.auth,
+            user_agent = excluded.user_agent,
+            updated_at = CURRENT_TIMESTAMP
+        `).bind(endpoint, p256dh, auth, userAgent).run();
+
+        return new Response(JSON.stringify({ success: true, message: 'Aparelho registrado no Cloudflare D1 com sucesso!' }), { headers });
+      }
+
+      case 'get_push_subscribers_count': {
+        try {
+          const countRes = await db.prepare("SELECT count(*) as total FROM push_subscriptions").first();
+          return new Response(JSON.stringify({ success: true, total: countRes ? countRes.total : 0 }), { headers });
+        } catch (e) {
+          return new Response(JSON.stringify({ success: true, total: 0 }), { headers });
+        }
+      }
+
       default:
         return new Response(JSON.stringify({ error: 'Ação não reconhecida' }), { status: 400, headers });
     }

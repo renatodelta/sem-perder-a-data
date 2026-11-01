@@ -417,6 +417,6 @@
   </div>
 
   <!-- Scripts -->
-  <script src="assets/js/app.js?v=8"></script>
+  <script src="assets/js/app.js?v=10"></script>
 </body>
 </html>
