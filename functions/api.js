@@ -535,6 +535,77 @@ export async function onRequest(context) {
         }), { headers });
       }
 
+      // DISPARO DE AVISO AUTOMÁTICO DE 24 HORAS (COMPROMISSOS DE AMANHÃ)
+      case 'send_24h_reminders': {
+        // Data de amanhã no fuso do Brasil (UTC-3)
+        const nowBrazil = new Date(Date.now() - (3 * 60 * 60 * 1000));
+        nowBrazil.setDate(nowBrazil.getDate() + 1);
+        const tomorrowStr = nowBrazil.toISOString().split('T')[0];
+
+        // 1. Busca compromissos (consultas e exames) agendados para amanhã
+        const appsRes = await db.prepare(`
+          SELECT a.*, p.name as person_name 
+          FROM appointments a
+          JOIN persons p ON a.person_id = p.id
+          WHERE a.appointment_date = ? AND a.status = 'agendada'
+        `).bind(tomorrowStr).all();
+
+        const upcoming = appsRes.results || [];
+
+        if (upcoming.length === 0) {
+          return new Response(JSON.stringify({
+            success: true,
+            message: `Nenhum compromisso agendado para amanhã (${tomorrowStr.split('-').reverse().join('/')}).`,
+            total_sent: 0
+          }), { headers });
+        }
+
+        // 2. Busca aparelhos cadastrados
+        const subsRes = await db.prepare("SELECT * FROM push_subscriptions").all();
+        const subscriptions = subsRes.results || [];
+
+        if (subscriptions.length === 0) {
+          return new Response(JSON.stringify({
+            success: false,
+            message: 'Nenhum celular cadastrado para receber notificações.'
+          }), { headers });
+        }
+
+        const vapidPublicKey = env.VAPID_PUBLIC_KEY || 'BHLVYyEtgS03hBshXPDbjgNtYZ6kQzydxFtSxC0W_A-roF5Ypj8lnoV9KbH_dPoDa5tLob5NUs1KmELCav37_40';
+        const vapidPrivateKey = env.VAPID_PRIVATE_KEY || 'zEBJsmnvBCDtlFuQ3yzbnNP6Az9Gz-YxVJPnU_SqXoc';
+
+        let totalSent = 0;
+
+        for (const sub of subscriptions) {
+          try {
+            const authHeader = await generateVapidHeader(sub.endpoint, vapidPrivateKey, vapidPublicKey);
+
+            const pushRes = await fetch(sub.endpoint, {
+              method: 'POST',
+              headers: {
+                'Authorization': authHeader,
+                'TTL': '86400',
+                'Urgency': 'high'
+              }
+            });
+
+            if (pushRes.status === 201 || pushRes.status === 200 || pushRes.status === 202) {
+              totalSent++;
+            } else if (pushRes.status === 410 || pushRes.status === 404) {
+              await db.prepare("DELETE FROM push_subscriptions WHERE id = ?").bind(sub.id).run();
+            }
+          } catch (e) {}
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          message: `Lembretes de 24h enviados com sucesso para amanhã!`,
+          compromissos_amanha: upcoming.map(u => `${u.person_name}: ${u.specialty} em ${u.city}`),
+          total_aparelhos: subscriptions.length,
+          total_notificados: totalSent
+        }), { headers });
+      }
+
       default:
         return new Response(JSON.stringify({ error: 'Ação não reconhecida' }), { status: 400, headers });
     }
