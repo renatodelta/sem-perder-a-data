@@ -3,6 +3,78 @@
  * Roda na borda da Cloudflare e responde em /api?action=...
  */
 
+// Helper para converter base64 URL-safe para ArrayBuffer
+function base64UrlToUint8Array(base64UrlString) {
+  const padding = '='.repeat((4 - (base64UrlString.length % 4)) % 4);
+  const base64 = (base64UrlString + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const buffer = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    buffer[i] = rawData.charCodeAt(i);
+  }
+  return buffer;
+}
+
+function arrayBufferToBase64Url(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// Cria o cabeçalho Authorization VAPID compatível com Google FCM e Apple APNs
+async function generateVapidHeader(endpointUrl, vapidPrivateKey, vapidPublicKey, subject = 'mailto:admin@semperderadata.local') {
+  const origin = new URL(endpointUrl).origin;
+  const header = { typ: 'JWT', alg: 'ES256' };
+  const exp = Math.floor(Date.now() / 1000) + (12 * 60 * 60); // 12 horas de validade
+  const payload = {
+    aud: origin,
+    exp: exp,
+    sub: subject
+  };
+
+  const encHeader = arrayBufferToBase64Url(new TextEncoder().encode(JSON.stringify(header)));
+  const encPayload = arrayBufferToBase64Url(new TextEncoder().encode(JSON.stringify(payload)));
+  const unsignedToken = `${encHeader}.${encPayload}`;
+
+  // Importa a chave privada VAPID (formato JWK P-256)
+  const dBytes = base64UrlToUint8Array(vapidPrivateKey);
+  const rawPub = base64UrlToUint8Array(vapidPublicKey);
+  // Remove o byte 0x04 inicial de ponto não comprimido para pegar x e y (32 bytes cada)
+  const xBytes = rawPub.slice(1, 33);
+  const yBytes = rawPub.slice(33, 65);
+
+  const jwk = {
+    kty: 'EC',
+    crv: 'P-256',
+    x: arrayBufferToBase64Url(xBytes),
+    y: arrayBufferToBase64Url(yBytes),
+    d: arrayBufferToBase64Url(dBytes),
+    ext: true
+  };
+
+  const key = await crypto.subtle.importKey(
+    'jwk',
+    jwk,
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign(
+    { name: 'ECDSA', hash: { name: 'SHA-256' } },
+    key,
+    new TextEncoder().encode(unsignedToken)
+  );
+
+  const encSignature = arrayBufferToBase64Url(signature);
+  const jwt = `${unsignedToken}.${encSignature}`;
+
+  return `vapid t=${jwt}, k=${vapidPublicKey}`;
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -428,10 +500,14 @@ export async function onRequest(context) {
 
         for (const sub of subscriptions) {
           try {
-            // Disparo direto com cabeçalho de urgência WebPush (RFC 8030)
+            // Gera o cabeçalho Authorization VAPID assinado (RFC 8292)
+            const authHeader = await generateVapidHeader(sub.endpoint, vapidPrivateKey, vapidPublicKey);
+
+            // Disparo oficial WebPush para o Google FCM / Apple APNs
             const pushRes = await fetch(sub.endpoint, {
               method: 'POST',
               headers: {
+                'Authorization': authHeader,
                 'TTL': '86400',
                 'Urgency': 'high'
               }
