@@ -401,6 +401,64 @@ export async function onRequest(context) {
         }
       }
 
+      // DISPARO DE TESTE WEB PUSH PELO CLOUDFLARE
+      case 'send_test_push': {
+        const subsRes = await db.prepare("SELECT * FROM push_subscriptions ORDER BY id DESC").all();
+        const subscriptions = subsRes.results || [];
+
+        if (subscriptions.length === 0) {
+          return new Response(JSON.stringify({
+            success: false,
+            message: 'Nenhum aparelho cadastrado no Cloudflare D1.'
+          }), { headers });
+        }
+
+        const results = [];
+        const payloadText = JSON.stringify({
+          title: '🔔 Alerta: App Fechado!',
+          body: '🎉 Parabéns! Notificação enviada pelo Cloudflare diretamente para o seu celular.',
+          icon: 'assets/icons/icon-192.png',
+          badge: 'assets/icons/icon-192.png',
+          data: { url: './' }
+        });
+
+        // Chaves VAPID configuradas
+        const vapidPublicKey = env.VAPID_PUBLIC_KEY || 'BHLVYyEtgS03hBshXPDbjgNtYZ6kQzydxFtSxC0W_A-roF5Ypj8lnoV9KbH_dPoDa5tLob5NUs1KmELCav37_40';
+        const vapidPrivateKey = env.VAPID_PRIVATE_KEY || 'zEBJsmnvBCDtlFuQ3yzbnNP6Az9Gz-YxVJPnU_SqXoc';
+
+        for (const sub of subscriptions) {
+          try {
+            // Disparo direto com cabeçalho de urgência WebPush (RFC 8030)
+            const pushRes = await fetch(sub.endpoint, {
+              method: 'POST',
+              headers: {
+                'TTL': '86400',
+                'Urgency': 'high'
+              }
+            });
+
+            results.push({
+              id: sub.id,
+              status: pushRes.status,
+              ok: pushRes.status === 201 || pushRes.status === 200 || pushRes.status === 202
+            });
+
+            // Se o aparelho foi cancelado ou expirou no Google/Apple (410 Gone ou 404)
+            if (pushRes.status === 410 || pushRes.status === 404) {
+              await db.prepare("DELETE FROM push_subscriptions WHERE id = ?").bind(sub.id).run();
+            }
+          } catch (err) {
+            results.push({ id: sub.id, error: err.message });
+          }
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          total_subscribers: subscriptions.length,
+          detalhes: results
+        }), { headers });
+      }
+
       default:
         return new Response(JSON.stringify({ error: 'Ação não reconhecida' }), { status: 400, headers });
     }
