@@ -93,58 +93,104 @@ const App = {
     });
   },
 
+  urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  },
+
   async requestNotificationPermission() {
-    if (!('Notification' in window)) {
-      alert('Seu navegador ou aparelho não possui suporte a Notificações Web.');
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      alert('Seu navegador ou aparelho não suporta Notificações Push.');
       return false;
     }
 
-    if (Notification.permission === 'granted') {
+    let permission = Notification.permission;
+    if (permission !== 'granted' && permission !== 'denied') {
+      permission = await Notification.requestPermission();
+    }
+
+    if (permission !== 'granted') {
+      this.showToast('Permissão de notificação negada no navegador.', 'warning');
+      return false;
+    }
+
+    // Registra a inscrição Push no Servidor (VAPID)
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+
+      if (!sub) {
+        // Busca a chave pública VAPID da nossa API
+        let publicKey = 'BHLVYyEtgS03hBshXPDbjgNtYZ6kQzydxFtSxC0W_A-roF5Ypj8lnoV9KbH_dPoDa5tLob5NUs1KmELCav37_40';
+        try {
+          const keyRes = await fetch('api.php?action=get_vapid_public_key');
+          const keyData = await keyRes.json();
+          if (keyData.success && keyData.publicKey) {
+            publicKey = keyData.publicKey;
+          }
+        } catch (e) {}
+
+        const convertedVapidKey = this.urlBase64ToUint8Array(publicKey);
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: convertedVapidKey
+        });
+      }
+
+      // Envia os dados do aparelho para salvar no banco SQLite
+      const subJson = sub.toJSON();
+      await fetch('api.php?action=save_push_subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(subJson)
+      });
+
+      return true;
+    } catch (e) {
+      console.error('Erro ao subscrever push:', e);
+      // Se falhar (ex: por não estar em HTTPS ou modo anônimo), avisa
+      this.showToast('Aviso: Push server requer HTTPS ou localhost.', 'warning');
       return true;
     }
-
-    if (Notification.permission !== 'denied') {
-      const permission = await Notification.requestPermission();
-      return permission === 'granted';
-    }
-
-    alert('As notificações estão bloqueadas no seu navegador. Ative as permissões nas configurações do site no seu navegador.');
-    return false;
   },
 
   async testLocalNotification() {
     try {
+      this.showToast('Ativando alertas no aparelho...', 'info');
       const granted = await this.requestNotificationPermission();
-      if (!granted) {
-        this.showToast('Permissão de notificação negada.', 'warning');
-        return;
-      }
+      if (!granted) return;
 
-      this.showToast('🔔 Notificação agendada para daqui a 5 segundos! Minimize o app ou bloqueie a tela.', 'info');
+      this.showToast('✅ Aparelho cadastrado! Testando disparo do servidor...', 'success');
 
-      // Aguarda 5 segundos para que o usuário possa fechar/minimizar a tela e ver o alerta do celular
+      // Faz a requisição ao servidor para disparar o Push real pelo Google/Apple
       setTimeout(async () => {
-        const title = '🩺 Lembrete: Consulta de Ednéia amanhã!';
-        const options = {
-          body: '📍 Cardiologia com Dr. Roberto em Cruzeiro às 14:00 (Faltam 24h). Não se esqueça dos exames!',
-          icon: 'assets/icons/icon-192.png',
-          badge: 'assets/icons/icon-192.png',
-          vibrate: [200, 100, 200, 100, 200],
-          tag: 'test-reminder',
-          renotify: true,
-          data: { url: './' }
-        };
-
-        if ('serviceWorker' in navigator) {
-          const reg = await navigator.serviceWorker.ready;
-          reg.showNotification(title, options);
-        } else {
-          new Notification(title, options);
+        try {
+          const res = await fetch('enviar_alerta_agendado.php?test=1');
+          const data = await res.json();
+          if (data.success && data.enviados > 0) {
+            this.showToast('🚀 Notificação enviada pelo servidor!', 'success');
+          } else {
+            // Fallback caso esteja offline
+            const reg = await navigator.serviceWorker.ready;
+            reg.showNotification('🔔 Família em Dia - Ativo!', {
+              body: 'Seu celular está pronto para receber alertas de 24h antes dos compromissos!',
+              icon: 'assets/icons/icon-192.png',
+              badge: 'assets/icons/icon-192.png',
+              vibrate: [200, 100, 200]
+            });
+          }
+        } catch (err) {
+          console.error(err);
         }
-      }, 5000);
+      }, 1500);
     } catch (e) {
-      console.error('Erro ao disparar notificação:', e);
-      alert('Erro ao disparar notificação: ' + e.message);
+      console.error('Erro:', e);
     }
   },
 

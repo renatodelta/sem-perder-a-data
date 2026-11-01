@@ -1,5 +1,5 @@
 // sw.js - Service Worker Seguro para PWA (Família em Dia)
-const CACHE_NAME = 'familia-em-dia-v7';
+const CACHE_NAME = 'familia-em-dia-v8';
 const CORE_ASSETS = [
   './',
   './index.html',

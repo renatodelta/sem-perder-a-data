@@ -483,6 +483,39 @@ try {
             responseJson(['success' => true, 'message' => 'Exemplos práticos carregados com sucesso!']);
             break;
 
+        // --- SALVAR INSCRIÇÃO PUSH DO CELULAR ---
+        case 'save_push_subscription':
+            $endpoint = $input['endpoint'] ?? '';
+            $p256dh = $input['keys']['p256dh'] ?? '';
+            $auth = $input['keys']['auth'] ?? '';
+            $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+
+            if (!$endpoint || !$p256dh || !$auth) {
+                responseJson(['error' => 'Parâmetros de inscrição inválidos'], 400);
+            }
+
+            $stmt = $pdo->prepare("
+                INSERT INTO push_subscriptions (endpoint, p256dh, auth, user_agent, updated_at)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(endpoint) DO UPDATE SET
+                    p256dh = excluded.p256dh,
+                    auth = excluded.auth,
+                    user_agent = excluded.user_agent,
+                    updated_at = CURRENT_TIMESTAMP
+            ");
+            $stmt->execute([$endpoint, $p256dh, $auth, $userAgent]);
+
+            responseJson(['success' => true, 'message' => 'Aparelho inscrito para notificações com sucesso!']);
+            break;
+
+        case 'get_vapid_public_key':
+            $pushConfig = require __DIR__ . '/push_config.php';
+            responseJson([
+                'success' => true,
+                'publicKey' => $pushConfig['VAPID']['publicKey']
+            ]);
+            break;
+
         // --- BACKUP / EXPORTAÇÃO ---
         case 'export_backup':
             $backup = [
