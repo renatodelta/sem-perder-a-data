@@ -1649,10 +1649,14 @@ const App = {
       }
     }
     modal.classList.add('active');
+    document.body.classList.add('modal-open');
+    const modalBody = modal.querySelector('.modal-body');
+    if (modalBody) modalBody.scrollTop = 0;
   },
 
   closeAllModals() {
     document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+    document.body.classList.remove('modal-open');
   },
 
   openNewSheet() {
