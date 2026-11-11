@@ -499,10 +499,15 @@ const App = {
   },
 
   switchTab(tabName) {
+    if (tabName === 'exames') {
+      tabName = 'consultas';
+      this.state.selectedCategoryFilter = 'exame';
+    } else if (tabName === 'consultas' && this.state.selectedCategoryFilter === 'exame') {
+      this.state.selectedCategoryFilter = 'all';
+    }
     this.state.currentTab = tabName;
     document.querySelectorAll('.bottom-nav-item').forEach(btn => {
       let isActive = btn.dataset.tab === tabName;
-      if (tabName === 'exames' && btn.dataset.tab === 'consultas') isActive = true;
       if (tabName === 'familiares' && btn.dataset.tab === 'remedios') isActive = true;
       btn.classList.toggle('active', isActive);
     });
@@ -602,8 +607,9 @@ const App = {
       badgeTrips.style.display = s.shared_trips_count > 0 ? 'inline-block' : 'none';
     }
     if (badgeConsultas) {
-      badgeConsultas.textContent = this.state.appointments.length || '';
-      badgeConsultas.style.display = this.state.appointments.length > 0 ? 'inline-block' : 'none';
+      const totalEvents = (this.state.appointments.length || 0) + (this.state.exams.length || 0);
+      badgeConsultas.textContent = totalEvents || '';
+      badgeConsultas.style.display = totalEvents > 0 ? 'inline-block' : 'none';
     }
     if (badgeExames) {
       badgeExames.textContent = s.exams_ready_to_bring > 0 ? s.exams_ready_to_bring : (this.state.exams.length || '');
@@ -620,9 +626,57 @@ const App = {
     this.renderCurrentTab();
   },
 
-  onSearchInput(val) {
-    this.state.searchQuery = (val || '').trim().toLowerCase();
+  onSearchInput(val, inputEl) {
+    this.state.searchQuery = val || '';
+    const clearBtn = document.getElementById('search-clear-btn');
+    if (clearBtn) clearBtn.style.display = val ? 'flex' : 'none';
+
+    // Se estivermos na aba de Agenda (consultas) e o container já existir, atualiza apenas a lista
+    if (this.state.currentTab === 'consultas' && document.getElementById('agenda-events-list')) {
+      this.updateAgendaListOnly();
+      return;
+    }
+
+    // Se estivermos no Painel (dashboard) e o container já existir
+    if (this.state.currentTab === 'dashboard' && document.getElementById('dashboard-upcoming-list')) {
+      this.updateDashboardListOnly();
+      return;
+    }
+
+    // Se estivermos na aba de Remédios
+    if (this.state.currentTab === 'remedios' && document.getElementById('remedios-list-container')) {
+      this.updateRemediosListOnly();
+      return;
+    }
+
+    // Fallback caso a aba precise ser re-renderizada: preserva foco e cursor
+    const cursor = inputEl ? inputEl.selectionStart : null;
     this.renderCurrentTab();
+    const newInput = document.querySelector('.search-input');
+    if (newInput) {
+      newInput.focus();
+      if (cursor !== null) {
+        newInput.setSelectionRange(cursor, cursor);
+      }
+    }
+  },
+
+  clearSearch() {
+    this.state.searchQuery = '';
+    const input = document.querySelector('.search-input');
+    if (input) input.value = '';
+    const clearBtn = document.getElementById('search-clear-btn');
+    if (clearBtn) clearBtn.style.display = 'none';
+
+    if (this.state.currentTab === 'consultas' && document.getElementById('agenda-events-list')) {
+      this.updateAgendaListOnly();
+    } else if (this.state.currentTab === 'dashboard' && document.getElementById('dashboard-upcoming-list')) {
+      this.updateDashboardListOnly();
+    } else if (this.state.currentTab === 'remedios' && document.getElementById('remedios-list-container')) {
+      this.updateRemediosListOnly();
+    } else {
+      this.renderCurrentTab();
+    }
   },
 
   setCategoryFilter(cat) {
@@ -650,6 +704,7 @@ const App = {
   },
 
   getSearchBarHtml(placeholder = 'Buscar por médico, cidade, pessoa...') {
+    const hasQuery = Boolean(this.state.searchQuery);
     return `
       <div class="search-filter-bar">
         <div class="search-input-wrapper">
@@ -658,7 +713,14 @@ const App = {
                  class="search-input"
                  placeholder="${placeholder}"
                  value="${this.escapeHtml(this.state.searchQuery)}"
-                 oninput="App.onSearchInput(this.value)">
+                 oninput="App.onSearchInput(this.value, this)"
+                 onkeydown="if(event.key==='Escape'){ App.clearSearch(); }">
+          <button type="button" 
+                  class="search-clear-btn" 
+                  id="search-clear-btn" 
+                  style="display: ${hasQuery ? 'flex' : 'none'};" 
+                  onclick="App.clearSearch()" 
+                  title="Limpar busca">&times;</button>
         </div>
         <button class="btn-search-filter" onclick="App.openNewSheet()" title="Novo Agendamento">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -671,7 +733,8 @@ const App = {
     const cur = this.state.selectedCategoryFilter;
     const cats = [
       { id: 'all', label: 'Todos' },
-      { id: 'saude', label: '🩺 Saúde' },
+      { id: 'saude', label: '🩺 Consultas' },
+      { id: 'exame', label: '🔬 Exames' },
       { id: 'inss', label: '🏛️ INSS' },
       { id: 'banco', label: '🏦 Banco' },
       { id: 'outro', label: '📋 Outro' }
@@ -1050,45 +1113,51 @@ const App = {
       <div class="action-bar">
         <div class="action-bar-title">
           <span>📅 Compromissos e Agenda</span>
-          <span class="status-pill status-agendado">${upcoming.length}</span>
+          <span class="status-pill status-agendado" id="dashboard-count-badge">${upcoming.length}</span>
         </div>
         <button class="btn btn-sm btn-outline-primary" onclick="App.switchTab('consultas')">Ver Todas</button>
       </div>
 
-      ${upcoming.length === 0 ? `
-        <div class="empty-state">
-          <div class="empty-state-icon">🩺</div>
-          <h3>${q ? 'Nenhum resultado para a busca' : 'Nenhum compromisso pendente'}</h3>
-          <p>${q ? 'Tente buscar com outro termo ou limpe o campo.' : 'Toque no botão central (+) para agendar um compromisso.'}</p>
-        </div>
-      ` : `
-        <div style="display:flex; flex-direction:column; gap:0.6rem;">
-          ${upcoming.slice(0, 6).map(app => this.getAppointmentCardHtml(app)).join('')}
-        </div>
-      `}
+      <div id="dashboard-upcoming-list">
+        ${this.getDashboardUpcomingListHtml(upcoming, q)}
+      </div>
     `;
 
     container.innerHTML = html;
   },
 
-  /* =========================================================================
-     ABA 3: AGENDA DE COMPROMISSOS (MÉDICO, INSS, BANCO, OUTROS)
-     ========================================================================= */
-  renderConsultasTab(container) {
-    const q = this.state.searchQuery;
-    const catFilter = this.state.selectedCategoryFilter;
-    const personFilter = this.state.selectedFamilyFilter;
+  getDashboardUpcomingListHtml(upcoming, q) {
+    if (upcoming.length === 0) {
+      return `
+        <div class="empty-state">
+          <div class="empty-state-icon">🩺</div>
+          <h3>${q ? 'Nenhum resultado para a busca' : 'Nenhum compromisso pendente'}</h3>
+          <p>${q ? 'Tente buscar com outro termo ou limpe o campo.' : 'Toque no botão central (+) para agendar um compromisso.'}</p>
+        </div>
+      `;
+    }
+    return `
+      <div style="display:flex; flex-direction:column; gap:0.6rem;">
+        ${upcoming.slice(0, 6).map(app => this.getAppointmentCardHtml(app)).join('')}
+      </div>
+    `;
+  },
 
-    let list = this.state.appointments.filter(a => {
-      // Filtro de Pessoa
-      if (personFilter !== 'all' && a.person_id != personFilter) {
-        return false;
-      }
-      // Filtro de Categoria
-      if (catFilter !== 'all' && this.getAppointmentCategory(a) !== catFilter) {
-        return false;
-      }
-      // Filtro de Busca
+  updateDashboardListOnly() {
+    const listEl = document.getElementById('dashboard-upcoming-list');
+    const badgeEl = document.getElementById('dashboard-count-badge');
+    if (!listEl) {
+      this.renderCurrentTab();
+      return;
+    }
+    const today = this.state.currentDate;
+    const q = (this.state.searchQuery || '').trim().toLowerCase();
+    const catFilter = this.state.selectedCategoryFilter;
+
+    let upcoming = this.state.appointments.filter(a => {
+      if (!q && a.status !== 'agendada') return false;
+      if (!q && a.appointment_date < today) return false;
+      if (catFilter !== 'all' && this.getAppointmentCategory(a) !== catFilter) return false;
       if (q) {
         const str = `${a.specialty || ''} ${a.doctor_name || ''} ${a.person_name || ''} ${a.city || ''} ${a.notes || ''}`.toLowerCase();
         if (!str.includes(q)) return false;
@@ -1096,17 +1165,112 @@ const App = {
       return true;
     });
 
-    let html = `
-      <div class="subnav-segmented">
-        <button class="subnav-pill active" onclick="App.switchTab('consultas')">
-          📅 Compromissos (${this.state.appointments.length})
-        </button>
-        <button class="subnav-pill" onclick="App.switchTab('exames')">
-          🔬 Pedidos de Exames (${this.state.exams.length})
-        </button>
-      </div>
+    listEl.innerHTML = this.getDashboardUpcomingListHtml(upcoming, q);
+    if (badgeEl) {
+      badgeEl.textContent = upcoming.length;
+    }
+  },
 
-      ${this.getSearchBarHtml('Buscar compromisso, médico, banco...')}
+  /* =========================================================================
+     ABA 3: AGENDA UNIFICADA (TODOS OS EVENTOS: CONSULTAS, EXAMES, INSS, BANCO)
+     ========================================================================= */
+  getFilteredAgendaEvents() {
+    const q = (this.state.searchQuery || '').trim().toLowerCase();
+    const catFilter = this.state.selectedCategoryFilter;
+    const personFilter = this.state.selectedFamilyFilter;
+
+    // Filtra Compromissos
+    const appointments = this.state.appointments.filter(a => {
+      if (personFilter !== 'all' && a.person_id != personFilter) return false;
+      if (catFilter === 'exame') return false;
+      if (catFilter !== 'all' && this.getAppointmentCategory(a) !== catFilter) return false;
+      if (q) {
+        const str = `${a.specialty || ''} ${a.doctor_name || ''} ${a.person_name || ''} ${a.city || ''} ${a.location_name || ''} ${a.notes || ''}`.toLowerCase();
+        if (!str.includes(q)) return false;
+      }
+      return true;
+    });
+
+    // Filtra Exames
+    const exams = this.state.exams.filter(e => {
+      if (personFilter !== 'all' && e.person_id != personFilter) return false;
+      if (catFilter !== 'all' && catFilter !== 'exame') return false;
+      if (q) {
+        const str = `${e.exam_name || ''} ${e.target_doctor_name || ''} ${e.target_specialty || ''} ${e.location_name || ''} ${e.city || ''} ${e.person_name || ''} ${e.result_notes || ''}`.toLowerCase();
+        if (!str.includes(q)) return false;
+      }
+      return true;
+    });
+
+    // Unifica todos os eventos
+    const events = [
+      ...appointments.map(a => ({
+        type: 'appointment',
+        sortDate: a.appointment_date || '9999-12-31',
+        sortTime: a.appointment_time || '00:00',
+        data: a
+      })),
+      ...exams.map(e => ({
+        type: 'exam',
+        sortDate: e.exam_date || (e.target_appointment_date || '9999-12-30'),
+        sortTime: e.exam_time || '00:00',
+        data: e
+      }))
+    ];
+
+    events.sort((a, b) => {
+      const dA = a.sortDate + ' ' + a.sortTime;
+      const dB = b.sortDate + ' ' + b.sortTime;
+      return dA.localeCompare(dB);
+    });
+
+    return { events, appointmentsCount: appointments.length, examsCount: exams.length };
+  },
+
+  getEventsListHtml(events, q) {
+    if (events.length === 0) {
+      return `
+        <div class="empty-state">
+          <div class="empty-state-icon">📅</div>
+          <h3>${q ? 'Nenhum evento encontrado' : 'Nenhum evento cadastrado'}</h3>
+          <p>Cadastre consultas médicas, exames, idas ao INSS ou banco para organizar a rotina da família.</p>
+        </div>
+      `;
+    }
+
+    let html = `<div style="display:flex; flex-direction:column; gap:0.6rem;">`;
+    events.forEach(item => {
+      if (item.type === 'appointment') {
+        html += this.getAppointmentCardHtml(item.data);
+      } else {
+        html += this.getExamCardHtml(item.data);
+      }
+    });
+    html += `</div>`;
+    return html;
+  },
+
+  updateAgendaListOnly() {
+    const listEl = document.getElementById('agenda-events-list');
+    const badgeEl = document.getElementById('agenda-count-badge');
+    if (!listEl) {
+      this.renderCurrentTab();
+      return;
+    }
+    const { events } = this.getFilteredAgendaEvents();
+    const q = (this.state.searchQuery || '').trim().toLowerCase();
+    listEl.innerHTML = this.getEventsListHtml(events, q);
+    if (badgeEl) {
+      badgeEl.textContent = events.length;
+    }
+  },
+
+  renderConsultasTab(container) {
+    const { events } = this.getFilteredAgendaEvents();
+    const q = (this.state.searchQuery || '').trim().toLowerCase();
+
+    let html = `
+      ${this.getSearchBarHtml('Buscar consulta, exame, médico, banco...')}
 
       ${this.getCategoryPillsHtml()}
 
@@ -1114,34 +1278,26 @@ const App = {
 
       <div class="action-bar">
         <div class="action-bar-title">
-          <span>📅 Agenda e Compromissos</span>
-          <span class="status-pill status-agendado">${list.length}</span>
+          <span>📅 Todos os Eventos</span>
+          <span class="status-pill status-agendado" id="agenda-count-badge">${events.length}</span>
         </div>
-        <button class="btn btn-sm btn-primary" onclick="App.openModal('modal-appointment')">
-          <span>+ Agendar</span>
-        </button>
+        <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+          <button class="btn btn-sm btn-primary" onclick="App.openModal('modal-appointment')" title="Novo Compromisso">
+            <span>+ Compromisso</span>
+          </button>
+          <button class="btn btn-sm btn-secondary" onclick="App.openModal('modal-exam')" title="Novo Pedido de Exame">
+            <span>+ Exame</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="agenda-events-list">
+        ${this.getEventsListHtml(events, q)}
       </div>
     `;
 
-    if (list.length === 0) {
-      html += `
-        <div class="empty-state">
-          <div class="empty-state-icon">📅</div>
-          <h3>${q ? 'Nenhum resultado encontrado' : 'Nenhum compromisso cadastrado'}</h3>
-          <p>Cadastre consultas médicas, idas ao INSS, banco ou outras saídas.</p>
-        </div>
-      `;
-    } else {
-      html += `<div style="display:flex; flex-direction:column; gap:0.6rem;">`;
-      list.forEach(app => {
-        html += this.getAppointmentCardHtml(app);
-      });
-      html += `</div>`;
-    }
-
     container.innerHTML = html;
   },
-
 
   getAppointmentCardHtml(app) {
     const specLower = (app.specialty || '').toLowerCase();
@@ -1226,141 +1382,102 @@ const App = {
     `;
   },
 
-  /* =========================================================================
-     ABA 4: EXAMES
-     ========================================================================= */
-  renderExamesTab(container) {
-    const q = this.state.searchQuery;
-    const personFilter = this.state.selectedFamilyFilter;
-
-    let list = this.state.exams.filter(e => {
-      if (personFilter !== 'all' && e.person_id != personFilter) {
-        return false;
-      }
-      if (q) {
-        const str = `${e.exam_name || ''} ${e.target_doctor_name || ''} ${e.target_specialty || ''} ${e.location_name || ''} ${e.city || ''} ${e.person_name || ''} ${e.result_notes || ''}`.toLowerCase();
-        if (!str.includes(q)) return false;
-      }
-      return true;
-    });
-
-    let html = `
-      <div class="subnav-segmented">
-        <button class="subnav-pill" onclick="App.switchTab('consultas')">
-          🩺 Consultas Médicas (${this.state.appointments.length})
-        </button>
-        <button class="subnav-pill active" onclick="App.switchTab('exames')">
-          🔬 Pedidos de Exames (${this.state.exams.length})
-        </button>
-      </div>
-
-      ${this.getSearchBarHtml('Buscar exames, laudos, laboratório...')}
-
-      ${this.getFilterSelectHtml()}
-
-      <div class="action-bar">
-        <div class="action-bar-title">
-          <span>🔬 Exames e Retornos</span>
-          <span class="status-pill status-agendado">${list.length}</span>
-        </div>
-        <button class="btn btn-sm btn-primary" onclick="App.openModal('modal-exam')">
-          <span>+ Novo Exame</span>
-        </button>
-      </div>
-    `;
-
-    if (list.length === 0) {
-      html += `
-        <div class="empty-state">
-          <div class="empty-state-icon">🔬</div>
-          <h3>${q ? 'Nenhum exame encontrado' : 'Nenhum exame cadastrado'}</h3>
-          <p>Cadastre os exames pedidos pelos médicos para acompanhar laudos e retornos.</p>
-        </div>
-      `;
-    } else {
-      html += `<div style="display:flex; flex-direction:column; gap:0.6rem;">`;
-      list.forEach(ex => {
-        let statusBadge = '';
-        switch (ex.status) {
-          case 'a_agendar':
-            statusBadge = '<span class="status-pill status-a-agendar">🟡 A Agendar</span>';
-            break;
-          case 'agendado':
-            statusBadge = '<span class="status-pill status-agendado">🔵 Agendado</span>';
-            break;
-          case 'feito_aguardando':
-            statusBadge = '<span class="status-pill status-aguardando">🟣 Aguardando Resultado</span>';
-            break;
-          case 'pronto_levar':
-            statusBadge = '<span class="status-pill status-pronto">🟢 PRONTO P/ LEVAR!</span>';
-            break;
-          case 'concluido':
-            statusBadge = '<span class="status-pill status-concluido">⚪ Concluído</span>';
-            break;
-        }
-
-        html += `
-          <div class="item-card">
-            <div class="item-card-header">
-              <span class="person-badge" style="background-color: ${ex.person_color};">
-                👤 ${this.escapeHtml(ex.person_name)}
-              </span>
-              <div>${statusBadge}</div>
-            </div>
-
-            <div class="item-title">${this.escapeHtml(ex.exam_name)}</div>
-
-            <div class="item-meta-grid">
-              <div class="item-meta-item">
-                📅 Realização: <strong>${ex.exam_date ? this.formatDate(ex.exam_date) : 'A agendar'}</strong>
-              </div>
-              <div class="item-meta-item">
-                ⏰ Horário: <strong>${ex.exam_time ? ex.exam_time.substring(0, 5) : '--:--'}</strong>
-              </div>
-              <div class="item-meta-item">
-                📍 Cidade: <strong>${this.escapeHtml(ex.city || 'A definir')}</strong>
-              </div>
-              <div class="item-meta-item">
-                🏢 Local: ${this.escapeHtml(ex.location_name || 'Laboratório')}
-              </div>
-            </div>
-
-            <!-- Vínculo com a Consulta de Retorno -->
-            <div class="bring-to-appointment-box" style="${ex.status === 'pronto_levar' ? 'background:#ecfdf5; border-color:#86efac; color:#065f46;' : ''}">
-              <span>🎯</span>
-              <div>
-                ${ex.target_appointment_id ? `
-                  <span>Levar no retorno com: <strong>${this.escapeHtml(ex.target_doctor_name || ex.target_specialty)}</strong> em <strong>${this.formatDate(ex.target_appointment_date)}</strong></span>
-                ` : `
-                  <span style="color:#64748b;">Nenhuma consulta de retorno vinculada. <a href="javascript:void(0)" onclick="App.editExam(${ex.id})" style="color:var(--primary); font-weight:800;">Vincular</a></span>
-                `}
-              </div>
-            </div>
-
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.6rem; padding-top:0.6rem; border-top:1px solid #f1f5f9; gap:0.4rem; flex-wrap:wrap;">
-              <div style="display:flex; align-items:center; gap:0.35rem;">
-                <label style="font-size:0.75rem; font-weight:800; color:var(--text-muted);">Status:</label>
-                <select class="form-control" style="width:auto; padding:0.25rem 0.5rem; font-size:0.78rem;" onchange="App.updateExamStatus(${ex.id}, this.value)">
-                  <option value="a_agendar" ${ex.status === 'a_agendar' ? 'selected' : ''}>A Agendar</option>
-                  <option value="agendado" ${ex.status === 'agendado' ? 'selected' : ''}>Agendado</option>
-                  <option value="feito_aguardando" ${ex.status === 'feito_aguardando' ? 'selected' : ''}>Aguardando Resultado</option>
-                  <option value="pronto_levar" ${ex.status === 'pronto_levar' ? 'selected' : ''}>Pronto p/ Levar</option>
-                  <option value="concluido" ${ex.status === 'concluido' ? 'selected' : ''}>Concluído</option>
-                </select>
-              </div>
-
-              <div style="display:flex; gap:0.35rem;">
-                <button class="btn btn-sm btn-secondary" onclick="App.editExam(${ex.id})">Editar</button>
-                <button class="btn btn-sm btn-secondary" style="color:var(--danger);" onclick="App.deleteExam(${ex.id})">Excluir</button>
-              </div>
-            </div>
-          </div>
-        `;
-      });
-      html += `</div>`;
+  getExamCardHtml(ex) {
+    let statusBadge = '';
+    switch (ex.status) {
+      case 'a_agendar':
+        statusBadge = '<span class="status-pill status-a-agendar">🟡 A Agendar</span>';
+        break;
+      case 'agendado':
+        statusBadge = '<span class="status-pill status-agendado">🔵 Agendado</span>';
+        break;
+      case 'feito_aguardando':
+        statusBadge = '<span class="status-pill status-aguardando">🟣 Aguardando Resultado</span>';
+        break;
+      case 'pronto_levar':
+        statusBadge = '<span class="status-pill status-pronto">🟢 PRONTO P/ LEVAR!</span>';
+        break;
+      case 'concluido':
+        statusBadge = '<span class="status-pill status-concluido">⚪ Concluído</span>';
+        break;
     }
 
-    container.innerHTML = html;
+    return `
+      <div class="item-card" style="border-left: 5px solid ${ex.person_color || '#008b9e'};">
+        <div class="item-card-header">
+          <div style="display:flex; align-items:center; gap:0.35rem; flex-wrap:wrap;">
+            <span class="person-badge" style="background-color: ${ex.person_color};">
+              👤 ${this.escapeHtml(ex.person_name)}
+            </span>
+            <span class="status-pill" style="background:#e0f2fe; color:#0369a1; font-weight:800; font-size:0.7rem;">
+              🔬 Exame
+            </span>
+          </div>
+          <div>${statusBadge}</div>
+        </div>
+
+        <div class="item-title">${this.escapeHtml(ex.exam_name)}</div>
+
+        <div class="item-meta-grid">
+          <div class="item-meta-item">
+            📅 Realização: <strong>${ex.exam_date ? this.formatDate(ex.exam_date) : 'A agendar'}</strong>
+          </div>
+          <div class="item-meta-item">
+            ⏰ Horário: <strong>${ex.exam_time ? ex.exam_time.substring(0, 5) : '--:--'}</strong>
+          </div>
+          <div class="item-meta-item">
+            📍 Cidade: <strong>${this.escapeHtml(ex.city || 'A definir')}</strong>
+          </div>
+          <div class="item-meta-item">
+            🏢 Local: ${this.escapeHtml(ex.location_name || 'Laboratório / Clínica')}
+          </div>
+        </div>
+
+        <!-- Vínculo com a Consulta de Retorno -->
+        <div class="bring-to-appointment-box" style="${ex.status === 'pronto_levar' ? 'background:#ecfdf5; border-color:#86efac; color:#065f46;' : ''}">
+          <span>🎯</span>
+          <div>
+            ${ex.target_appointment_id ? `
+              <span>Levar no retorno com: <strong>${this.escapeHtml(ex.target_doctor_name || ex.target_specialty)}</strong> em <strong>${this.formatDate(ex.target_appointment_date)}</strong></span>
+            ` : `
+              <span style="color:#64748b;">Nenhuma consulta de retorno vinculada. <a href="javascript:void(0)" onclick="App.editExam(${ex.id})" style="color:var(--primary-teal); font-weight:800;">Vincular</a></span>
+            `}
+          </div>
+        </div>
+
+        ${ex.result_notes ? `
+          <div style="font-size:0.8rem; color:var(--text-secondary); background:#f8fafc; padding:0.4rem 0.6rem; border-radius:var(--radius-sm); margin:0.4rem 0;">
+            📝 <em>${this.escapeHtml(ex.result_notes)}</em>
+          </div>
+        ` : ''}
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.6rem; padding-top:0.6rem; border-top:1px solid #f1f5f9; gap:0.4rem; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; gap:0.35rem;">
+            <label style="font-size:0.75rem; font-weight:800; color:var(--text-muted);">Status:</label>
+            <select class="form-control" style="width:auto; padding:0.25rem 0.5rem; font-size:0.78rem;" onchange="App.updateExamStatus(${ex.id}, this.value)">
+              <option value="a_agendar" ${ex.status === 'a_agendar' ? 'selected' : ''}>A Agendar</option>
+              <option value="agendado" ${ex.status === 'agendado' ? 'selected' : ''}>Agendado</option>
+              <option value="feito_aguardando" ${ex.status === 'feito_aguardando' ? 'selected' : ''}>Aguardando Resultado</option>
+              <option value="pronto_levar" ${ex.status === 'pronto_levar' ? 'selected' : ''}>Pronto p/ Levar</option>
+              <option value="concluido" ${ex.status === 'concluido' ? 'selected' : ''}>Concluído</option>
+            </select>
+          </div>
+
+          <div style="display:flex; gap:0.35rem;">
+            <button class="btn btn-sm btn-secondary" onclick="App.editExam(${ex.id})">Editar</button>
+            <button class="btn btn-sm btn-secondary" style="color:var(--danger);" onclick="App.deleteExam(${ex.id})">Excluir</button>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /* =========================================================================
+     ABA 4: EXAMES (REDIRECIONA PARA AGENDA COM FILTRO DE EXAMES)
+     ========================================================================= */
+  renderExamesTab(container) {
+    this.state.selectedCategoryFilter = 'exame';
+    this.renderConsultasTab(container);
   },
 
   /* =========================================================================
@@ -1416,45 +1533,80 @@ const App = {
           <span>+ Cadastrar</span>
         </button>
       </div>
+
+      <div id="remedios-list-container">
+        ${this.getRemediosListHtml(list, medFilter, q)}
+      </div>
     `;
 
+    container.innerHTML = html;
+  },
+
+  getRemediosListHtml(list, medFilter, q) {
+    const needsPurchase = list.filter(m => m.needs_purchase == 1);
+    const stockOk = list.filter(m => m.needs_purchase == 0);
+
     if (list.length === 0) {
-      html += `
+      return `
         <div class="empty-state">
           <div class="empty-state-icon">💊</div>
           <h3>${q ? 'Nenhum remédio encontrado' : 'Nenhum remédio cadastrado'}</h3>
           <p>Cadastre os remédios e marque quando precisar comprar na farmácia.</p>
         </div>
       `;
-    } else {
-      if (needsPurchase.length > 0 && (medFilter === 'all' || medFilter === 'comprar')) {
-        html += `
-          <div style="margin-bottom:1.25rem;">
-            <h3 style="font-size:0.95rem; font-weight:800; color:var(--accent-orange); margin-bottom:0.5rem; display:flex; align-items:center; gap:0.4rem;">
-              <span>🛒</span> Falta Comprar (${needsPurchase.length})
-            </h3>
-            <div style="display:flex; flex-direction:column; gap:0.5rem;">
-              ${needsPurchase.map(m => this.getMedicationRowHtml(m)).join('')}
-            </div>
-          </div>
-        `;
-      }
-
-      if (stockOk.length > 0 && (medFilter === 'all' || medFilter === 'em_dia')) {
-        html += `
-          <div>
-            <h3 style="font-size:0.95rem; font-weight:800; color:var(--text-title); margin-bottom:0.5rem; display:flex; align-items:center; gap:0.4rem;">
-              <span>✅</span> Em Estoque / Em Dia (${stockOk.length})
-            </h3>
-            <div style="display:flex; flex-direction:column; gap:0.5rem;">
-              ${stockOk.map(m => this.getMedicationRowHtml(m)).join('')}
-            </div>
-          </div>
-        `;
-      }
     }
 
-    container.innerHTML = html;
+    let html = '';
+    if (needsPurchase.length > 0 && (medFilter === 'all' || medFilter === 'comprar')) {
+      html += `
+        <div style="margin-bottom:1.25rem;">
+          <h3 style="font-size:0.95rem; font-weight:800; color:var(--accent-orange); margin-bottom:0.5rem; display:flex; align-items:center; gap:0.4rem;">
+            <span>🛒</span> Falta Comprar (${needsPurchase.length})
+          </h3>
+          <div style="display:flex; flex-direction:column; gap:0.5rem;">
+            ${needsPurchase.map(m => this.getMedicationRowHtml(m)).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    if (stockOk.length > 0 && (medFilter === 'all' || medFilter === 'em_dia')) {
+      html += `
+        <div>
+          <h3 style="font-size:0.95rem; font-weight:800; color:var(--text-title); margin-bottom:0.5rem; display:flex; align-items:center; gap:0.4rem;">
+            <span>✅</span> Em Estoque / Em Dia (${stockOk.length})
+          </h3>
+          <div style="display:flex; flex-direction:column; gap:0.5rem;">
+            ${stockOk.map(m => this.getMedicationRowHtml(m)).join('')}
+          </div>
+        </div>
+      `;
+    }
+    return html;
+  },
+
+  updateRemediosListOnly() {
+    const listEl = document.getElementById('remedios-list-container');
+    if (!listEl) {
+      this.renderCurrentTab();
+      return;
+    }
+    const q = (this.state.searchQuery || '').trim().toLowerCase();
+    const medFilter = this.state.selectedMedFilter;
+    const personFilter = this.state.selectedFamilyFilter;
+
+    let list = this.state.medications.filter(m => {
+      if (personFilter !== 'all' && m.person_id != personFilter) return false;
+      if (medFilter === 'comprar' && m.needs_purchase != 1) return false;
+      if (medFilter === 'em_dia' && m.needs_purchase != 0) return false;
+      if (q) {
+        const str = `${m.name || ''} ${m.dosage || ''} ${m.preferred_city || ''} ${m.instructions || ''} ${m.person_name || ''} ${m.notes || ''}`.toLowerCase();
+        if (!str.includes(q)) return false;
+      }
+      return true;
+    });
+
+    listEl.innerHTML = this.getRemediosListHtml(list, medFilter, q);
   },
 
   getMedicationRowHtml(m) {

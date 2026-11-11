@@ -205,7 +205,7 @@ html, body {
 .search-input {
   width: 100%;
   height: 48px;
-  padding: 0 1rem 0 2.75rem;
+  padding: 0 2.5rem 0 2.75rem;
   background: #ffffff;
   border: 1px solid var(--teal-border);
   border-radius: var(--radius-lg);
@@ -216,6 +216,33 @@ html, body {
   outline: none;
   transition: var(--transition);
   box-sizing: border-box;
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #f1f5f9;
+  border: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  z-index: 2;
+}
+
+.search-clear-btn:active,
+.search-clear-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
 }
 
 .search-input:focus {
