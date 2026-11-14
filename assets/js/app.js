@@ -15,7 +15,8 @@ const App = {
     medications: [],
     trips: [],
     summary: {},
-    currentTab: 'dashboard',
+    currentTab: 'consultas',
+    selectedWeekFilter: 'esta_semana',
     selectedFamilyFilter: 'all',
     selectedCategoryFilter: 'all',
     selectedMedFilter: 'all',
@@ -499,16 +500,12 @@ const App = {
   },
 
   switchTab(tabName) {
-    if (tabName === 'exames') {
+    if (tabName === 'exames' || tabName === 'dashboard') {
       tabName = 'consultas';
-      this.state.selectedCategoryFilter = 'exame';
-    } else if (tabName === 'consultas' && this.state.selectedCategoryFilter === 'exame') {
-      this.state.selectedCategoryFilter = 'all';
     }
     this.state.currentTab = tabName;
     document.querySelectorAll('.bottom-nav-item').forEach(btn => {
       let isActive = btn.dataset.tab === tabName;
-      if (tabName === 'familiares' && btn.dataset.tab === 'remedios') isActive = true;
       btn.classList.toggle('active', isActive);
     });
     this.renderCurrentTab();
@@ -624,6 +621,131 @@ const App = {
   setPersonFilter(personId) {
     this.state.selectedFamilyFilter = personId;
     this.renderCurrentTab();
+  },
+
+  setWeekFilter(filter) {
+    this.state.selectedWeekFilter = filter;
+    this.renderCurrentTab();
+  },
+
+  getWeekBounds(offsetWeeks = 0) {
+    const todayStr = this.state.currentDate || new Date().toISOString().split('T')[0];
+    const base = new Date(todayStr + 'T12:00:00');
+    const dayOfWeek = base.getDay(); // 0: domingo, 1: segunda...
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(base);
+    monday.setDate(base.getDate() + diffToMonday + (offsetWeeks * 7));
+
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    const pad = n => String(n).padStart(2, '0');
+    const toYMD = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+    return {
+      start: toYMD(monday),
+      end: toYMD(sunday),
+      startFormatted: `${pad(monday.getDate())}/${pad(monday.getMonth() + 1)}`,
+      endFormatted: `${pad(sunday.getDate())}/${pad(sunday.getMonth() + 1)}`
+    };
+  },
+
+  getDayOfWeekName(dateStr) {
+    if (!dateStr || dateStr.startsWith('9999')) return 'Sem data definida';
+    const parts = dateStr.split('-');
+    const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
+    const dayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+    return dayNames[d.getDay()] || '';
+  },
+
+  getDayFormattedLong(dateStr) {
+    if (!dateStr || dateStr.startsWith('9999')) return 'A definir data';
+    const parts = dateStr.split('-');
+    const dayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
+    const dayOfWeek = dayNames[d.getDay()];
+    const day = parts[2];
+    const month = monthNames[parseInt(parts[1], 10) - 1] || '';
+    return `${dayOfWeek}, ${day} de ${month}`;
+  },
+
+  getRelativeDayBadge(dateStr) {
+    const today = this.state.currentDate || new Date().toISOString().split('T')[0];
+    if (dateStr === today) {
+      return '<span class="day-badge today">🟢 HOJE</span>';
+    }
+    const t = new Date(today + 'T12:00:00');
+    t.setDate(t.getDate() + 1);
+    const pad = n => String(n).padStart(2, '0');
+    const tomYMD = `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`;
+    if (dateStr === tomYMD) {
+      return '<span class="day-badge tomorrow">🔵 AMANHÃ</span>';
+    }
+    return '';
+  },
+
+  getWeekFilterButtonsHtml(thisWeek, nextWeek) {
+    const cur = this.state.selectedWeekFilter || 'esta_semana';
+    return `
+      <div class="week-filter-segmented">
+        <button type="button" class="week-filter-btn ${cur === 'esta_semana' ? 'active' : ''}" onclick="App.setWeekFilter('esta_semana')">
+          📅 Esta Semana (${thisWeek.startFormatted} - ${thisWeek.endFormatted})
+        </button>
+        <button type="button" class="week-filter-btn ${cur === 'proxima_semana' ? 'active' : ''}" onclick="App.setWeekFilter('proxima_semana')">
+          ⏭️ Próxima (${nextWeek.startFormatted} - ${nextWeek.endFormatted})
+        </button>
+        <button type="button" class="week-filter-btn ${cur === 'todos' ? 'active' : ''}" onclick="App.setWeekFilter('todos')">
+          🗂️ Todos
+        </button>
+      </div>
+    `;
+  },
+
+  getPersonPillsFilterHtml() {
+    const cur = this.state.selectedFamilyFilter;
+    return `
+      <div class="person-filter-carousel">
+        <button type="button" class="person-pill-btn ${cur === 'all' ? 'active' : ''}" onclick="App.setPersonFilter('all')">
+          👥 Todos (${this.state.persons.length})
+        </button>
+        ${this.state.persons.map(p => `
+          <button type="button" class="person-pill-btn ${cur == p.id ? 'active' : ''}" onclick="App.setPersonFilter(${p.id})">
+            <span class="person-dot-indicator" style="background-color: ${p.color};"></span>
+            ${this.escapeHtml(p.name)}
+          </button>
+        `).join('')}
+      </div>
+    `;
+  },
+
+  getWeekSummaryBannerHtml(eventsCount, weekBounds, nextBounds) {
+    const cur = this.state.selectedWeekFilter || 'esta_semana';
+    let periodTitle = 'Agenda desta Semana';
+    let periodSub = `De ${weekBounds.startFormatted} até ${weekBounds.endFormatted} • Todos os compromissos da família`;
+    if (cur === 'proxima_semana') {
+      periodTitle = 'Agenda da Próxima Semana';
+      periodSub = `De ${nextBounds.startFormatted} até ${nextBounds.endFormatted} • Planejamento antecipado`;
+    } else if (cur === 'todos') {
+      periodTitle = 'Todos os Compromissos';
+      periodSub = 'Visão de todos os agendamentos cadastrados';
+    }
+
+    return `
+      <div class="agenda-hero-card">
+        <div class="agenda-hero-top">
+          <div>
+            <span class="agenda-hero-tag">Agenda da Ednéia</span>
+            <h2 class="agenda-hero-title">${periodTitle}</h2>
+          </div>
+          <div class="agenda-hero-badge">
+            <span class="hero-count-num">${eventsCount}</span>
+            <span class="hero-count-lbl">${eventsCount === 1 ? 'evento' : 'eventos'}</span>
+          </div>
+        </div>
+        <p class="agenda-hero-desc">${periodSub}</p>
+      </div>
+    `;
   },
 
   onSearchInput(val, inputEl) {
@@ -933,257 +1055,36 @@ const App = {
   },
 
   /* =========================================================================
-     ABA 2: PAINEL GERAL (DESIGN OCEAN TEAL COM DONUT CHART E FILTROS)
+     ABA 2 / ABA PRINCIPAL: AGENDA DA SEMANA (SIMPLIFICADA E OBJETIVA)
      ========================================================================= */
   renderDashboardTab(container) {
-    const s = this.state.summary;
-    const today = this.state.currentDate;
-    const q = this.state.searchQuery;
-    const catFilter = this.state.selectedCategoryFilter;
-
-    // Métricas do Donut Chart (Tela 4 do Ocean Teal UI Kit)
-    const agendadas = this.state.appointments.filter(a => a.status === 'agendada').length;
-    const examesProntos = this.state.exams.filter(e => e.status === 'pronto_levar').length;
-    const medsComprar = this.state.medications.filter(m => m.needs_purchase == 1).length;
-    const totalCare = agendadas + examesProntos + medsComprar;
-
-    // Geometria exata do Donut SVG (Raio 40, Circunferência 2 * PI * 40 ≈ 251.33)
-    const C = 251.33;
-    let seg1Dash = '0 251.33', seg1Offset = 0;
-    let seg2Dash = '0 251.33', seg2Offset = 0;
-    let seg3Dash = '0 251.33', seg3Offset = 0;
-
-    if (totalCare > 0) {
-      const p1 = agendadas / totalCare;
-      const p2 = examesProntos / totalCare;
-      const p3 = medsComprar / totalCare;
-
-      const len1 = p1 * C;
-      const len2 = p2 * C;
-      const len3 = p3 * C;
-
-      seg1Dash = `${len1.toFixed(2)} ${C.toFixed(2)}`;
-      seg1Offset = 0;
-
-      seg2Dash = `${len2.toFixed(2)} ${C.toFixed(2)}`;
-      seg2Offset = -len1.toFixed(2);
-
-      seg3Dash = `${len3.toFixed(2)} ${C.toFixed(2)}`;
-      seg3Offset = -(len1 + len2).toFixed(2);
-    }
-
-    // Próxima Viagem Regional
-    const trips = this.state.trips || [];
-    const firstTrip = trips.length > 0 ? trips[0] : null;
-
-    // Filtro dos compromissos
-    let upcoming = this.state.appointments.filter(a => {
-      // Se não estiver buscando, mostra agendadas de hoje em diante; se buscar, filtra no catálogo todo
-      if (!q && a.status !== 'agendada') return false;
-      if (!q && a.appointment_date < today) return false;
-
-      // Filtro de Categoria
-      if (catFilter !== 'all' && this.getAppointmentCategory(a) !== catFilter) {
-        return false;
-      }
-
-      // Filtro de Busca
-      if (q) {
-        const str = `${a.specialty || ''} ${a.doctor_name || ''} ${a.person_name || ''} ${a.city || ''} ${a.notes || ''}`.toLowerCase();
-        if (!str.includes(q)) return false;
-      }
-
-      return true;
-    });
-
-    const readyExams = this.state.exams.filter(e => e.status === 'pronto_levar');
-
-    let html = `
-      <!-- BARRA DE PESQUISA E BOTÃO DE AÇÃO TEAL -->
-      ${this.getSearchBarHtml('Buscar consulta, exame, pessoa...')}
-
-      <!-- CARD DE ESTATÍSTICAS COM DONUT CHART (TELA 4) -->
-      <div class="stats-donut-card">
-        <div class="stats-card-header">
-          <div class="stats-card-title">Resumo de Cuidados</div>
-          <div class="stats-card-date">📅 ${this.formatDate(today)}</div>
-        </div>
-        <div class="stats-card-body">
-          <div class="donut-chart-box">
-            <svg viewBox="0 0 100 100" class="donut-svg">
-              <circle class="donut-bg" cx="50" cy="50" r="40" />
-              ${totalCare > 0 ? `
-                <circle class="donut-seg-1" cx="50" cy="50" r="40" stroke-dasharray="${seg1Dash}" stroke-dashoffset="${seg1Offset}" />
-                <circle class="donut-seg-2" cx="50" cy="50" r="40" stroke-dasharray="${seg2Dash}" stroke-dashoffset="${seg2Offset}" />
-                <circle class="donut-seg-3" cx="50" cy="50" r="40" stroke-dasharray="${seg3Dash}" stroke-dashoffset="${seg3Offset}" />
-              ` : ''}
-            </svg>
-            <div class="donut-center-text">
-              <div class="donut-center-num">${totalCare}</div>
-              <div class="donut-center-label">Ações</div>
-            </div>
-          </div>
-
-          <div class="donut-legend-list">
-            <div class="legend-item" onclick="App.switchTab('consultas')" style="cursor:pointer;" title="Ver Consultas">
-              <span class="legend-dot green"></span>
-              <span>Consultas</span>
-              <span class="legend-num">${agendadas}</span>
-            </div>
-            <div class="legend-item" onclick="App.switchTab('exames')" style="cursor:pointer;" title="Ver Exames Prontos">
-              <span class="legend-dot cyan"></span>
-              <span>Exames Prontos</span>
-              <span class="legend-num">${examesProntos}</span>
-            </div>
-            <div class="legend-item" onclick="App.switchTab('remedios')" style="cursor:pointer;" title="Ver Remédios a Comprar">
-              <span class="legend-dot orange"></span>
-              <span>Falta Comprar</span>
-              <span class="legend-num">${medsComprar}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- DESTAQUE DA PRÓXIMA SAÍDA REGIONAL (SE HOUVER) -->
-      ${firstTrip ? (() => {
-        const tripDateParts = firstTrip.date.split('-');
-        const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-        const monthStr = monthNames[parseInt(tripDateParts[1], 10) - 1] || '';
-        return `
-          <div class="trip-card shared-trip" style="margin-bottom: 1.25rem;">
-            <div class="trip-card-header">
-              <div class="trip-date-info">
-                <div class="trip-calendar-box">
-                  <div class="month">${monthStr}</div>
-                  <div class="day">${tripDateParts[2]}</div>
-                </div>
-                <div class="trip-meta-title">
-                  <h3>📍 Próxima Saída: ${this.escapeHtml(firstTrip.city)}</h3>
-                  <p>${firstTrip.total_people} pessoa(s) • ${firstTrip.total_events} parada(s)</p>
-                </div>
-              </div>
-              <button class="btn btn-sm btn-outline-primary" onclick="App.switchTab('logistica')">
-                Ver Roteiro
-              </button>
-            </div>
-            <div class="trip-body" style="padding-top: 0.75rem; padding-bottom: 0.75rem;">
-              <div class="trip-passengers" style="margin-bottom: 0; padding-bottom: 0; border: none;">
-                ${firstTrip.people.map(p => `
-                  <span class="passenger-pill" style="background-color: ${p.color}; font-size: 0.75rem; padding: 2px 9px;">
-                    👤 ${this.escapeHtml(p.name)}
-                  </span>
-                `).join('')}
-              </div>
-            </div>
-          </div>
-        `;
-      })() : ''}
-
-      <!-- FILTROS EM PÍLULA HORIZONTAL (TELA 3 / 5) -->
-      ${this.getCategoryPillsHtml()}
-
-      <!-- ALERTA DE EXAMES PRONTOS PARA LEVAR -->
-      ${readyExams.length > 0 ? `
-        <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-left:5px solid var(--accent-green); border-radius:var(--radius-lg); padding:1rem 1.15rem; margin-bottom:1.15rem; box-shadow:var(--shadow-sm);">
-          <h3 style="color:#065f46; font-size:0.95rem; font-weight:800; display:flex; align-items:center; gap:0.4rem; margin-bottom:0.25rem;">
-            <span>✅</span> Exames Prontos para Levar na Consulta!
-          </h3>
-          <p style="font-size:0.78rem; color:#047857; margin-bottom:0.65rem;">
-            Laudos concluídos que devem ser entregues ao médico no retorno:
-          </p>
-          <div style="display:flex; flex-direction:column; gap:0.45rem;">
-            ${readyExams.map(ex => `
-              <div style="background:#ffffff; border:1px solid #d1fae5; padding:0.65rem 0.85rem; border-radius:var(--radius-md); display:flex; justify-content:space-between; align-items:center; gap:0.5rem;">
-                <div>
-                  <span class="person-badge" style="background-color:${ex.person_color}; font-size:0.7rem; padding:2px 8px;">${this.escapeHtml(ex.person_name)}</span>
-                  <strong style="font-size:0.88rem; color:var(--text-title); display:block; margin-top:3px;">${this.escapeHtml(ex.exam_name)}</strong>
-                  <div style="font-size:0.75rem; color:#065f46; margin-top:2px;">
-                    🎯 Retorno: <strong>${this.escapeHtml(ex.target_doctor_name || ex.target_specialty || 'Consulta')}</strong> 
-                    ${ex.target_appointment_date ? ` em ${this.formatDate(ex.target_appointment_date)}` : ''}
-                  </div>
-                </div>
-                <button class="btn btn-sm btn-success" onclick="App.markExamDone(${ex.id})">Entregue</button>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      ` : ''}
-
-      <!-- TÍTULO DA SEÇÃO DE COMPROMISSOS -->
-      <div class="action-bar">
-        <div class="action-bar-title">
-          <span>📅 Compromissos e Agenda</span>
-          <span class="status-pill status-agendado" id="dashboard-count-badge">${upcoming.length}</span>
-        </div>
-        <button class="btn btn-sm btn-outline-primary" onclick="App.switchTab('consultas')">Ver Todas</button>
-      </div>
-
-      <div id="dashboard-upcoming-list">
-        ${this.getDashboardUpcomingListHtml(upcoming, q)}
-      </div>
-    `;
-
-    container.innerHTML = html;
+    // Redireciona diretamente para a Agenda Simplificada da Semana
+    this.renderConsultasTab(container);
   },
 
-  getDashboardUpcomingListHtml(upcoming, q) {
-    if (upcoming.length === 0) {
-      return `
-        <div class="empty-state">
-          <div class="empty-state-icon">🩺</div>
-          <h3>${q ? 'Nenhum resultado para a busca' : 'Nenhum compromisso pendente'}</h3>
-          <p>${q ? 'Tente buscar com outro termo ou limpe o campo.' : 'Toque no botão central (+) para agendar um compromisso.'}</p>
-        </div>
-      `;
-    }
-    return `
-      <div style="display:flex; flex-direction:column; gap:0.6rem;">
-        ${upcoming.slice(0, 6).map(app => this.getAppointmentCardHtml(app)).join('')}
-      </div>
-    `;
-  },
-
-  updateDashboardListOnly() {
-    const listEl = document.getElementById('dashboard-upcoming-list');
-    const badgeEl = document.getElementById('dashboard-count-badge');
-    if (!listEl) {
-      this.renderCurrentTab();
-      return;
-    }
-    const today = this.state.currentDate;
-    const q = (this.state.searchQuery || '').trim().toLowerCase();
-    const catFilter = this.state.selectedCategoryFilter;
-
-    let upcoming = this.state.appointments.filter(a => {
-      if (!q && a.status !== 'agendada') return false;
-      if (!q && a.appointment_date < today) return false;
-      if (catFilter !== 'all' && this.getAppointmentCategory(a) !== catFilter) return false;
-      if (q) {
-        const str = `${a.specialty || ''} ${a.doctor_name || ''} ${a.person_name || ''} ${a.city || ''} ${a.notes || ''}`.toLowerCase();
-        if (!str.includes(q)) return false;
-      }
-      return true;
-    });
-
-    listEl.innerHTML = this.getDashboardUpcomingListHtml(upcoming, q);
-    if (badgeEl) {
-      badgeEl.textContent = upcoming.length;
-    }
-  },
-
-  /* =========================================================================
-     ABA 3: AGENDA UNIFICADA (TODOS OS EVENTOS: CONSULTAS, EXAMES, INSS, BANCO)
-     ========================================================================= */
   getFilteredAgendaEvents() {
     const q = (this.state.searchQuery || '').trim().toLowerCase();
     const catFilter = this.state.selectedCategoryFilter;
     const personFilter = this.state.selectedFamilyFilter;
+    const weekFilter = this.state.selectedWeekFilter || 'esta_semana';
+    const thisWeek = this.getWeekBounds(0);
+    const nextWeek = this.getWeekBounds(1);
 
     // Filtra Compromissos
     const appointments = this.state.appointments.filter(a => {
       if (personFilter !== 'all' && a.person_id != personFilter) return false;
       if (catFilter === 'exame') return false;
       if (catFilter !== 'all' && this.getAppointmentCategory(a) !== catFilter) return false;
+
+      // Filtro de Semana (apenas quando não houver busca ativa por texto)
+      if (!q) {
+        if (weekFilter === 'esta_semana') {
+          if (!a.appointment_date || a.appointment_date < thisWeek.start || a.appointment_date > thisWeek.end) return false;
+        } else if (weekFilter === 'proxima_semana') {
+          if (!a.appointment_date || a.appointment_date < nextWeek.start || a.appointment_date > nextWeek.end) return false;
+        }
+      }
+
       if (q) {
         const str = `${a.specialty || ''} ${a.doctor_name || ''} ${a.person_name || ''} ${a.city || ''} ${a.location_name || ''} ${a.notes || ''}`.toLowerCase();
         if (!str.includes(q)) return false;
@@ -1195,6 +1096,16 @@ const App = {
     const exams = this.state.exams.filter(e => {
       if (personFilter !== 'all' && e.person_id != personFilter) return false;
       if (catFilter !== 'all' && catFilter !== 'exame') return false;
+
+      const eDate = e.exam_date || e.target_appointment_date;
+      if (!q) {
+        if (weekFilter === 'esta_semana') {
+          if (!eDate || eDate < thisWeek.start || eDate > thisWeek.end) return false;
+        } else if (weekFilter === 'proxima_semana') {
+          if (!eDate || eDate < nextWeek.start || eDate > nextWeek.end) return false;
+        }
+      }
+
       if (q) {
         const str = `${e.exam_name || ''} ${e.target_doctor_name || ''} ${e.target_specialty || ''} ${e.location_name || ''} ${e.city || ''} ${e.person_name || ''} ${e.result_notes || ''}`.toLowerCase();
         if (!str.includes(q)) return false;
@@ -1208,12 +1119,18 @@ const App = {
         type: 'appointment',
         sortDate: a.appointment_date || '9999-12-31',
         sortTime: a.appointment_time || '00:00',
+        city: a.city,
+        person_name: a.person_name,
+        person_id: a.person_id,
         data: a
       })),
       ...exams.map(e => ({
         type: 'exam',
         sortDate: e.exam_date || (e.target_appointment_date || '9999-12-30'),
         sortTime: e.exam_time || '00:00',
+        city: e.city,
+        person_name: e.person_name,
+        person_id: e.person_id,
         data: e
       }))
     ];
@@ -1224,28 +1141,138 @@ const App = {
       return dA.localeCompare(dB);
     });
 
-    return { events, appointmentsCount: appointments.length, examsCount: exams.length };
+    // Pedidos de exames pendentes sem data definida
+    const unplannedExams = this.state.exams.filter(e => {
+      if (personFilter !== 'all' && e.person_id != personFilter) return false;
+      return (!e.exam_date && !e.target_appointment_date) || e.status === 'aguardando_agendamento';
+    });
+
+    return {
+      events,
+      appointmentsCount: appointments.length,
+      examsCount: exams.length,
+      unplannedExamsCount: unplannedExams.length,
+      unplannedExams
+    };
   },
 
-  getEventsListHtml(events, q) {
+  getEventsListHtml(events, q, unplannedExams = []) {
     if (events.length === 0) {
+      const weekFilter = this.state.selectedWeekFilter || 'esta_semana';
+      let emptyMsg = 'Nenhum compromisso agendado para esta semana';
+      let emptySub = 'Toque nos botões acima para ver a Próxima Semana, Todos os Agendamentos, ou agende um novo compromisso no (+).';
+      if (weekFilter === 'proxima_semana') {
+        emptyMsg = 'Nenhum compromisso agendado para a próxima semana';
+        emptySub = 'Tudo calmo na próxima semana! Toque em "Esta Semana" ou cadastre um compromisso.';
+      } else if (weekFilter === 'todos') {
+        emptyMsg = 'Nenhum evento encontrado no histórico';
+        emptySub = 'Toque no botão (+) para cadastrar consultas, exames ou idas ao banco/INSS.';
+      }
+      if (q) {
+        emptyMsg = 'Nenhum resultado para a busca';
+        emptySub = 'Tente buscar com outro termo ou toque no botão de limpar busca.';
+      }
+
       return `
         <div class="empty-state">
           <div class="empty-state-icon">📅</div>
-          <h3>${q ? 'Nenhum evento encontrado' : 'Nenhum evento cadastrado'}</h3>
-          <p>Cadastre consultas médicas, exames, idas ao INSS ou banco para organizar a rotina da família.</p>
+          <h3>${emptyMsg}</h3>
+          <p>${emptySub}</p>
+          <div style="margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;">
+            <button class="btn btn-sm btn-primary" onclick="App.openModal('modal-appointment')">+ Compromisso</button>
+            <button class="btn btn-sm btn-secondary" onclick="App.openModal('modal-exam')">+ Exame</button>
+          </div>
         </div>
       `;
     }
 
-    let html = `<div style="display:flex; flex-direction:column; gap:0.6rem;">`;
+    // Agrupa os eventos por data (YYYY-MM-DD)
+    const grouped = {};
     events.forEach(item => {
-      if (item.type === 'appointment') {
-        html += this.getAppointmentCardHtml(item.data);
-      } else {
-        html += this.getExamCardHtml(item.data);
-      }
+      const dateKey = item.sortDate;
+      if (!grouped[dateKey]) grouped[dateKey] = [];
+      grouped[dateKey].push(item);
     });
+
+    let html = `<div class="agenda-days-container">`;
+
+    // Aviso de pedidos de exame sem data marcada (visível quando na visão "todos")
+    if (unplannedExams && unplannedExams.length > 0 && this.state.selectedWeekFilter === 'todos') {
+      html += `
+        <div class="pending-notice-card">
+          <div class="pending-notice-left">
+            <span class="pending-notice-icon">🔬</span>
+            <div>
+              <strong>${unplannedExams.length} Pedido(s) de Exame sem Data Definida</strong>
+              <p>Exames solicitados que ainda precisam ser marcados no laboratório ou posto.</p>
+            </div>
+          </div>
+          <button class="btn btn-xs btn-outline-primary" onclick="App.switchTab('exames')">Ver Exames</button>
+        </div>
+      `;
+    }
+
+    Object.keys(grouped).forEach(dateStr => {
+      const dayEvents = grouped[dateStr];
+      const dayName = this.getDayOfWeekName(dateStr);
+      const dayFormattedLong = this.getDayFormattedLong(dateStr);
+      const relativeBadge = this.getRelativeDayBadge(dateStr);
+      const isToday = (dateStr === this.state.currentDate);
+
+      // Detecta se há mais de 1 pessoa na mesma cidade nesse dia (Carona / Otimização)
+      const citiesOnDay = {};
+      dayEvents.forEach(ev => {
+        const c = (ev.city || '').trim();
+        if (c) {
+          if (!citiesOnDay[c]) citiesOnDay[c] = new Set();
+          citiesOnDay[c].add(ev.person_name);
+        }
+      });
+
+      let caronaNoticeHtml = '';
+      Object.keys(citiesOnDay).forEach(cName => {
+        const personsInCity = Array.from(citiesOnDay[cName]);
+        if (personsInCity.length > 1) {
+          caronaNoticeHtml += `
+            <div class="day-carona-alert">
+              <span>🚗</span>
+              <div>
+                <strong>Carona no dia para ${this.escapeHtml(cName)}:</strong>
+                <span>${personsInCity.map(p => this.escapeHtml(p)).join(' e ')} vão na mesma cidade!</span>
+              </div>
+            </div>
+          `;
+        }
+      });
+
+      html += `
+        <div class="agenda-day-block">
+          <div class="agenda-day-header ${isToday ? 'header-today' : ''}">
+            <div class="day-header-left">
+              <span class="day-name">${dayFormattedLong}</span>
+              <span class="day-date">${dayName}</span>
+            </div>
+            <div class="day-header-right">
+              ${relativeBadge}
+              <span class="day-count-pill">${dayEvents.length} ${dayEvents.length === 1 ? 'evento' : 'eventos'}</span>
+            </div>
+          </div>
+
+          ${caronaNoticeHtml}
+
+          <div class="agenda-day-cards">
+            ${dayEvents.map(item => {
+              if (item.type === 'appointment') {
+                return this.getAppointmentCardHtml(item.data);
+              } else {
+                return this.getExamCardHtml(item.data);
+              }
+            }).join('')}
+          </div>
+        </div>
+      `;
+    });
+
     html += `</div>`;
     return html;
   },
@@ -1257,42 +1284,56 @@ const App = {
       this.renderCurrentTab();
       return;
     }
-    const { events } = this.getFilteredAgendaEvents();
+    const { events, unplannedExams } = this.getFilteredAgendaEvents();
     const q = (this.state.searchQuery || '').trim().toLowerCase();
-    listEl.innerHTML = this.getEventsListHtml(events, q);
+    listEl.innerHTML = this.getEventsListHtml(events, q, unplannedExams);
     if (badgeEl) {
       badgeEl.textContent = events.length;
     }
   },
 
+  updateDashboardListOnly() {
+    this.updateAgendaListOnly();
+  },
+
   renderConsultasTab(container) {
-    const { events } = this.getFilteredAgendaEvents();
+    const thisWeek = this.getWeekBounds(0);
+    const nextWeek = this.getWeekBounds(1);
+    const { events, unplannedExams } = this.getFilteredAgendaEvents();
     const q = (this.state.searchQuery || '').trim().toLowerCase();
 
     let html = `
-      ${this.getSearchBarHtml('Buscar consulta, exame, médico, banco...')}
+      <!-- HERO BANNER RESUMO DA SEMANA -->
+      ${this.getWeekSummaryBannerHtml(events.length, thisWeek, nextWeek)}
 
-      ${this.getCategoryPillsHtml()}
+      <!-- SELETOR DE PERÍODO: ESTA SEMANA / PRÓXIMA / TODOS -->
+      ${this.getWeekFilterButtonsHtml(thisWeek, nextWeek)}
 
-      ${this.getFilterSelectHtml()}
+      <!-- CARROSSEL DE PESSOAS ASSISTIDAS -->
+      ${this.getPersonPillsFilterHtml()}
 
-      <div class="action-bar">
+      <!-- BARRA DE BUSCA RÁPIDA -->
+      ${this.getSearchBarHtml('Buscar por pessoa, médico, exame ou cidade...')}
+
+      <!-- BARRA DE AÇÃO / BOTÕES RÁPIDOS -->
+      <div class="action-bar" style="margin-top: 0.35rem; margin-bottom: 0.75rem;">
         <div class="action-bar-title">
-          <span>📅 Todos os Eventos</span>
+          <span>📋 Compromissos da Agenda</span>
           <span class="status-pill status-agendado" id="agenda-count-badge">${events.length}</span>
         </div>
         <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
           <button class="btn btn-sm btn-primary" onclick="App.openModal('modal-appointment')" title="Novo Compromisso">
             <span>+ Compromisso</span>
           </button>
-          <button class="btn btn-sm btn-secondary" onclick="App.openModal('modal-exam')" title="Novo Pedido de Exame">
+          <button class="btn btn-sm btn-secondary" onclick="App.openModal('modal-exam')" title="Novo Exame">
             <span>+ Exame</span>
           </button>
         </div>
       </div>
 
+      <!-- LISTA DE EVENTOS DIA A DIA -->
       <div id="agenda-events-list">
-        ${this.getEventsListHtml(events, q)}
+        ${this.getEventsListHtml(events, q, unplannedExams)}
       </div>
     `;
 

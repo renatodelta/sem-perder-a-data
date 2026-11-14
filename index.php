@@ -22,7 +22,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- Estilos Mobile-First Ocean Teal -->
-  <link rel="stylesheet" href="assets/css/style.css?v=8">
+  <link rel="stylesheet" href="assets/css/style.css?v=9">
 </head>
 <body>
 
@@ -79,26 +79,27 @@
 
   <!-- =========================================================================
        MENU INFERIOR FLUTUANTE (BOTTOM NAVIGATION BAR)
-       Com 4 abas + Botão Central Elevado (+) em Dourado Idêntico ao Layout
+       Agenda da Semana (Principal), Viagens, (+) Novo, Remédios e Família
        ========================================================================= -->
   <nav class="bottom-nav-bar">
     <div class="bottom-nav-container">
-      <!-- ABA 1: PAINEL / INÍCIO -->
-      <button class="bottom-nav-item active" data-tab="dashboard">
+      <!-- ABA 1: AGENDA DA SEMANA (PRINCIPAL / INÍCIO) -->
+      <button class="bottom-nav-item active" data-tab="consultas" title="Agenda da Semana">
         <div class="nav-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-            <rect x="3" y="3" width="7" height="7" rx="2.5"></rect>
-            <rect x="14" y="3" width="7" height="7" rx="2.5"></rect>
-            <rect x="3" y="14" width="7" height="7" rx="2.5"></rect>
-            <rect x="14" y="14" width="7" height="7" rx="2.5"></rect>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
           </svg>
+          <span class="nav-badge-pill" id="badge-bottom-consultas" style="display:none;">0</span>
         </div>
-        <span class="nav-text">Painel</span>
+        <span class="nav-text">Agenda</span>
         <span class="active-dot"></span>
       </button>
 
       <!-- ABA 2: VIAGENS / CARONAS -->
-      <button class="bottom-nav-item" data-tab="logistica">
+      <button class="bottom-nav-item" data-tab="logistica" title="Caronas e Viagens da Família">
         <div class="nav-icon">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path>
@@ -112,7 +113,7 @@
         <span class="active-dot"></span>
       </button>
 
-      <!-- BOTÃO CENTRAL ELEVADO FAB (+) EM DOURADO/AMBER -->
+      <!-- BOTÃO CENTRAL ELEVADO FAB (+) EM TEAL -->
       <div class="bottom-nav-fab-wrapper">
         <button class="bottom-nav-fab" onclick="App.openNewSheet()" aria-label="Adicionar Novo Agendamento" title="Novo Agendamento">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
@@ -122,30 +123,30 @@
         </button>
       </div>
 
-      <!-- ABA 3: AGENDA (CONSULTAS, INSS, BANCO, EXAMES) -->
-      <button class="bottom-nav-item" data-tab="consultas">
+      <!-- ABA 3: REMÉDIOS E FARMÁCIA -->
+      <button class="bottom-nav-item" data-tab="remedios" title="Remédios e Farmácia">
         <div class="nav-icon">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="20" x2="18" y2="10"></line>
-            <line x1="12" y1="20" x2="12" y2="4"></line>
-            <line x1="6" y1="20" x2="6" y2="14"></line>
-          </svg>
-          <span class="nav-badge-pill" id="badge-bottom-consultas" style="display:none;">0</span>
-        </div>
-        <span class="nav-text">Agenda</span>
-        <span class="active-dot"></span>
-      </button>
-
-      <!-- ABA 4: REMÉDIOS E FAMÍLIA -->
-      <button class="bottom-nav-item" data-tab="remedios">
-        <div class="nav-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
+            <path d="M10.5 20.5l10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"></path>
+            <path d="m8.5 8.5 7 7"></path>
           </svg>
           <span class="nav-badge-pill" id="badge-bottom-remedios" style="display:none;">0</span>
         </div>
         <span class="nav-text">Remédios</span>
+        <span class="active-dot"></span>
+      </button>
+
+      <!-- ABA 4: FAMÍLIA ASSISTIDA -->
+      <button class="bottom-nav-item" data-tab="familiares" title="As 6 Pessoas da Família">
+        <div class="nav-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+        </div>
+        <span class="nav-text">Família</span>
         <span class="active-dot"></span>
       </button>
     </div>
@@ -417,6 +418,6 @@
   </div>
 
   <!-- Scripts -->
-  <script src="assets/js/app.js?v=12"></script>
+  <script src="assets/js/app.js?v=13"></script>
 </body>
 </html>
