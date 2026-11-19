@@ -1322,6 +1322,9 @@ const App = {
           <span class="status-pill status-agendado" id="agenda-count-badge">${events.length}</span>
         </div>
         <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+          <button class="btn btn-sm btn-outline-primary" onclick="App.exportWeekPdf()" title="Gerar PDF da programação da semana selecionada">
+            <span>📄 Gerar PDF</span>
+          </button>
           <button class="btn btn-sm btn-primary" onclick="App.openModal('modal-appointment')" title="Novo Compromisso">
             <span>+ Compromisso</span>
           </button>
@@ -2219,6 +2222,403 @@ const App = {
     a.click();
     URL.revokeObjectURL(url);
     this.showToast('Backup baixado!', 'success');
+  },
+
+  hexToRgb(hex) {
+    if (!hex || typeof hex !== 'string') return [0, 139, 158];
+    const clean = hex.replace('#', '');
+    if (clean.length !== 6) return [0, 139, 158];
+    const num = parseInt(clean, 16);
+    if (isNaN(num)) return [0, 139, 158];
+    return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+  },
+
+  sanitizePdfText(str) {
+    if (!str) return '';
+    // Remove emojis e caracteres fora do Latin-1 que quebram a fonte Helvetica no jsPDF
+    return String(str)
+      .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
+      .replace(/[\u2600-\u27BF]/g, '')
+      .replace(/\uFE0F/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  },
+
+  exportWeekPdf() {
+    const { events, appointmentsCount, examsCount } = this.getFilteredAgendaEvents();
+    if (!events || events.length === 0) {
+      this.showToast('Nenhum compromisso encontrado na semana selecionada para gerar o PDF.', 'info');
+      return;
+    }
+
+    const weekFilter = this.state.selectedWeekFilter || 'esta_semana';
+    const thisWeek = this.getWeekBounds(0);
+    const nextWeek = this.getWeekBounds(1);
+
+    let periodTitle = `Esta Semana (${thisWeek.startFormatted} a ${thisWeek.endFormatted})`;
+    let fileSuffix = `esta_semana_${thisWeek.startFormatted.replace('/', '-')}_a_${thisWeek.endFormatted.replace('/', '-')}`;
+    if (weekFilter === 'proxima_semana') {
+      periodTitle = `Próxima Semana (${nextWeek.startFormatted} a ${nextWeek.endFormatted})`;
+      fileSuffix = `proxima_semana_${nextWeek.startFormatted.replace('/', '-')}_a_${nextWeek.endFormatted.replace('/', '-')}`;
+    } else if (weekFilter === 'todos') {
+      periodTitle = 'Todos os Compromissos Cadastrados';
+      fileSuffix = 'todos_compromissos';
+    }
+
+    const filterParts = [];
+    if (this.state.selectedFamilyFilter !== 'all') {
+      const p = this.state.persons.find(item => item.id == this.state.selectedFamilyFilter);
+      if (p) filterParts.push(`Pessoa: ${p.name}`);
+    }
+    const q = (this.state.searchQuery || '').trim();
+    if (q) filterParts.push(`Busca: "${q}"`);
+    const filterSubtitle = filterParts.length > 0 ? filterParts.join(' | ') : 'Todas as pessoas da família';
+
+    // Fallback para impressão se o jsPDF não estiver carregado
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      this.openPrintFallbackPdf(events, periodTitle, filterSubtitle);
+      return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 14;
+    const contentW = pageW - margin * 2;
+    const footerLimit = pageH - 16;
+
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const generatedAt = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} às ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+    const drawTopHeader = (isContinuation = false) => {
+      doc.setFillColor(0, 139, 158);
+      doc.rect(0, 0, pageW, isContinuation ? 18 : 30, 'F');
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(isContinuation ? 12 : 17);
+      doc.text('Família em Dia', margin, isContinuation ? 11 : 12.5);
+
+      if (!isContinuation) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10.5);
+        doc.text(this.sanitizePdfText(`Programação: ${periodTitle}`), margin, 19.5);
+
+        doc.setFontSize(8.5);
+        doc.setTextColor(220, 245, 248);
+        doc.text(this.sanitizePdfText(filterSubtitle), margin, 25.2);
+
+        // Badge de total no canto direito
+        doc.setFillColor(0, 105, 120);
+        doc.roundedRect(pageW - margin - 34, 7, 34, 16, 3, 3, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.text(String(events.length), pageW - margin - 17, 14.8, { align: 'center' });
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.text(events.length === 1 ? 'evento' : 'eventos', pageW - margin - 17, 20, { align: 'center' });
+      } else {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.text(this.sanitizePdfText(periodTitle), pageW - margin, 11, { align: 'right' });
+      }
+    };
+
+    drawTopHeader(false);
+    let y = 36;
+
+    // Resumo rápido do período
+    const uniqueCities = Array.from(new Set(events.map(e => (e.city || '').trim()).filter(Boolean)));
+    const summaryText = `Resumo: ${appointmentsCount} compromisso(s)  |  ${examsCount} exame(s)  |  Cidades: ${uniqueCities.length > 0 ? uniqueCities.join(', ') : 'A definir'}`;
+    const summaryLines = doc.splitTextToSize(this.sanitizePdfText(summaryText), contentW - 8);
+    const summaryBoxH = 6 + summaryLines.length * 4.2;
+
+    doc.setFillColor(244, 249, 250);
+    doc.setDrawColor(207, 232, 236);
+    doc.roundedRect(margin, y, contentW, summaryBoxH, 2.5, 2.5, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(0, 105, 120);
+    doc.text(summaryLines, margin + 4, y + 5.2);
+    y += summaryBoxH + 6;
+
+    const ensureSpace = (neededH) => {
+      if (y + neededH > footerLimit) {
+        doc.addPage();
+        drawTopHeader(true);
+        y = 24;
+      }
+    };
+
+    // Agrupa eventos por data
+    const grouped = {};
+    events.forEach(item => {
+      const dateKey = item.sortDate;
+      if (!grouped[dateKey]) grouped[dateKey] = [];
+      grouped[dateKey].push(item);
+    });
+
+    Object.keys(grouped).forEach(dateStr => {
+      const dayEvents = grouped[dateStr];
+      const dayLong = this.sanitizePdfText(this.getDayFormattedLong(dateStr));
+      const dayDateFormatted = dateStr && !dateStr.startsWith('9999') ? this.formatDate(dateStr) : 'Sem data';
+
+      // Verifica carona no dia
+      const citiesOnDay = {};
+      dayEvents.forEach(ev => {
+        const c = (ev.city || '').trim();
+        if (c) {
+          if (!citiesOnDay[c]) citiesOnDay[c] = new Set();
+          citiesOnDay[c].add(ev.person_name);
+        }
+      });
+      const caronas = [];
+      Object.keys(citiesOnDay).forEach(cName => {
+        const people = Array.from(citiesOnDay[cName]);
+        if (people.length > 1) {
+          caronas.push(`Carona para ${cName}: ${people.join(' e ')}`);
+        }
+      });
+
+      // Cabeçalho do dia
+      ensureSpace(22);
+      doc.setFillColor(224, 244, 247);
+      doc.rect(margin, y, contentW, 8.5, 'F');
+      doc.setFillColor(0, 139, 158);
+      doc.rect(margin, y, 2.2, 8.5, 'F');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(15, 45, 53);
+      doc.text(`${dayLong} (${dayDateFormatted})`, margin + 5, y + 5.8);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(0, 105, 120);
+      doc.text(`${dayEvents.length} ${dayEvents.length === 1 ? 'evento' : 'eventos'}`, pageW - margin - 3, y + 5.8, { align: 'right' });
+      y += 10.5;
+
+      // Alerta de carona do dia, se houver
+      if (caronas.length > 0) {
+        const caronaLines = doc.splitTextToSize(this.sanitizePdfText(caronas.join('  |  ')), contentW - 8);
+        const caronaH = 4 + caronaLines.length * 4;
+        ensureSpace(caronaH + 2);
+        doc.setFillColor(254, 243, 199);
+        doc.setDrawColor(253, 230, 138);
+        doc.roundedRect(margin, y, contentW, caronaH, 1.5, 1.5, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(146, 64, 14);
+        doc.text(caronaLines, margin + 4, y + 4.5);
+        y += caronaH + 3;
+      }
+
+      // Eventos do dia
+      dayEvents.forEach(item => {
+        const isApp = item.type === 'appointment';
+        const d = item.data;
+        const timeStr = isApp
+          ? (d.appointment_time ? d.appointment_time.substring(0, 5) : 'Sem hora')
+          : (d.exam_time ? d.exam_time.substring(0, 5) : 'Sem hora');
+
+        const personName = this.sanitizePdfText(d.person_name || 'Pessoa');
+        const personRgb = this.hexToRgb(d.person_color);
+
+        let catLabel = 'Exame';
+        let statusLabel = '';
+        let titleText = '';
+        let extraLine = '';
+        let notesLine = '';
+
+        if (isApp) {
+          const specLower = (d.specialty || '').toLowerCase();
+          catLabel = 'Medico';
+          if (specLower.includes('inss') || specLower.includes('previd') || specLower.includes('perícia') || specLower.includes('pericia')) catLabel = 'INSS';
+          else if (specLower.includes('banco') || specLower.includes('benefício') || specLower.includes('beneficio') || specLower.includes('pagamento') || specLower.includes('saque') || specLower.includes('bradesco') || specLower.includes('brasil') || specLower.includes('caixa')) catLabel = 'Banco';
+          else if (specLower.includes('cartório') || specLower.includes('cartorio') || specLower.includes('documento') || specLower.includes('mercado')) catLabel = 'Outro';
+
+          statusLabel = d.status === 'realizada' ? 'Concluído' : 'Agendado';
+          titleText = this.sanitizePdfText(`${d.specialty || 'Compromisso'}${d.doctor_name ? ' - ' + d.doctor_name : ''}`);
+          if (d.exams_to_bring_count > 0) {
+            extraLine = `Atenção: Levar ${d.exams_to_bring_count} exame(s) neste compromisso.`;
+          }
+          if (d.notes) notesLine = `Obs: ${this.sanitizePdfText(d.notes)}`;
+        } else {
+          const statusMap = {
+            a_agendar: 'A Agendar',
+            agendado: 'Agendado',
+            feito_aguardando: 'Aguardando Resultado',
+            pronto_levar: 'Pronto p/ Levar',
+            concluido: 'Concluído'
+          };
+          statusLabel = statusMap[d.status] || 'Exame';
+          titleText = this.sanitizePdfText(d.exam_name || 'Exame');
+          if (d.target_appointment_id) {
+            extraLine = this.sanitizePdfText(`Levar no retorno: ${d.target_doctor_name || d.target_specialty || 'Consulta'}${d.target_appointment_date ? ' em ' + this.formatDate(d.target_appointment_date) : ''}`);
+          }
+          if (d.result_notes) notesLine = `Obs: ${this.sanitizePdfText(d.result_notes)}`;
+        }
+
+        const locStr = this.sanitizePdfText(`Local: ${d.location_name || 'A confirmar'}  |  Cidade: ${d.city || 'A definir'}`);
+
+        const textColX = margin + 22;
+        const textColW = contentW - 25;
+        const titleWrapped = doc.splitTextToSize(titleText, textColW);
+        const locWrapped = doc.splitTextToSize(locStr, textColW);
+        const extraWrapped = extraLine ? doc.splitTextToSize(extraLine, textColW) : [];
+        const notesWrapped = notesLine ? doc.splitTextToSize(notesLine, textColW) : [];
+
+        const rowH =
+          8.5 +
+          titleWrapped.length * 4.5 +
+          locWrapped.length * 4 +
+          (extraWrapped.length ? extraWrapped.length * 4 + 1 : 0) +
+          (notesWrapped.length ? notesWrapped.length * 3.8 + 1 : 0) +
+          3;
+
+        ensureSpace(rowH + 2);
+
+        // Card branco com borda sutil
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(218, 236, 240);
+        doc.roundedRect(margin, y, contentW, rowH, 2, 2, 'FD');
+
+        // Coluna do horário à esquerda
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(0, 105, 120);
+        doc.text(timeStr, margin + 3.5, y + 6.5);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.2);
+        doc.setTextColor(100, 116, 139);
+        doc.text(catLabel, margin + 3.5, y + 11.2);
+
+        // Pill com nome e cor da pessoa
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.8);
+        const pillW = Math.min(doc.getTextWidth(personName) + 6, 55);
+        doc.setFillColor(personRgb[0], personRgb[1], personRgb[2]);
+        doc.roundedRect(textColX, y + 2.5, pillW, 5.2, 2.5, 2.5, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.text(personName, textColX + 3, y + 6.1);
+
+        // Status à direita
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(71, 85, 105);
+        doc.text(statusLabel, pageW - margin - 3.5, y + 6.1, { align: 'right' });
+
+        // Título do compromisso
+        let curY = y + 11.5;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(15, 45, 53);
+        doc.text(titleWrapped, textColX, curY);
+        curY += titleWrapped.length * 4.5;
+
+        // Local e cidade
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(71, 85, 105);
+        doc.text(locWrapped, textColX, curY);
+        curY += locWrapped.length * 4;
+
+        // Extra (retorno / exames a levar)
+        if (extraWrapped.length) {
+          curY += 1;
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8.2);
+          doc.setTextColor(180, 83, 9);
+          doc.text(extraWrapped, textColX, curY);
+          curY += extraWrapped.length * 4;
+        }
+
+        // Observações
+        if (notesWrapped.length) {
+          curY += 1;
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(8);
+          doc.setTextColor(100, 116, 139);
+          doc.text(notesWrapped, textColX, curY);
+        }
+
+        y += rowH + 2.5;
+      });
+
+      y += 3;
+    });
+
+    // Rodapé em todas as páginas
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setDrawColor(218, 236, 240);
+      doc.line(margin, pageH - 12, pageW - margin, pageH - 12);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.8);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Família em Dia  •  Gerado em ${generatedAt}`, margin, pageH - 7.2);
+      doc.text(`Página ${i} de ${totalPages}`, pageW - margin, pageH - 7.2, { align: 'right' });
+    }
+
+    doc.save(`familia_em_dia_${fileSuffix}.pdf`);
+    this.showToast('PDF da programação gerado com sucesso!', 'success');
+  },
+
+  openPrintFallbackPdf(events, periodTitle, filterSubtitle) {
+    const win = window.open('', '_blank');
+    if (!win) {
+      this.showToast('Permita pop-ups para imprimir ou gerar o PDF.', 'danger');
+      return;
+    }
+
+    const grouped = {};
+    events.forEach(item => {
+      const k = item.sortDate;
+      if (!grouped[k]) grouped[k] = [];
+      grouped[k].push(item);
+    });
+
+    const daysHtml = Object.keys(grouped).map(dateStr => {
+      const dayLong = this.getDayFormattedLong(dateStr);
+      const rows = grouped[dateStr].map(item => {
+        const d = item.data;
+        const isApp = item.type === 'appointment';
+        const time = isApp ? (d.appointment_time || '--:--').substring(0, 5) : (d.exam_time || '--:--').substring(0, 5);
+        const title = isApp ? `${d.specialty}${d.doctor_name ? ' • ' + d.doctor_name : ''}` : d.exam_name;
+        return `
+          <tr>
+            <td style="font-weight:700; color:#006978; white-space:nowrap;">${this.escapeHtml(time)}</td>
+            <td><span style="background:${d.person_color || '#008b9e'}; color:#fff; padding:2px 8px; border-radius:99px; font-size:12px; font-weight:700;">${this.escapeHtml(d.person_name)}</span></td>
+            <td><strong>${this.escapeHtml(title)}</strong><br><small style="color:#475569;">${this.escapeHtml(d.location_name || 'A confirmar')} — ${this.escapeHtml(d.city || '')}</small></td>
+          </tr>
+        `;
+      }).join('');
+      return `
+        <h3 style="background:#e0f4f7; color:#0f2d35; padding:8px 12px; border-left:4px solid #008b9e; margin:16px 0 8px 0;">${this.escapeHtml(dayLong)}</h3>
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+          ${rows}
+        </table>
+      `;
+    }).join('');
+
+    win.document.write(`
+      <!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Família em Dia - ${this.escapeHtml(periodTitle)}</title>
+      <style>body{font-family:Arial,sans-serif;padding:24px;color:#0f2d35;} td{padding:8px;border-bottom:1px solid #e2e8f0;vertical-align:top;}</style>
+      </head><body>
+        <div style="background:#008b9e;color:#fff;padding:16px 20px;border-radius:8px;">
+          <h1 style="margin:0;font-size:20px;">Família em Dia</h1>
+          <p style="margin:4px 0 0 0;font-size:14px;">${this.escapeHtml(periodTitle)} • ${this.escapeHtml(filterSubtitle)}</p>
+        </div>
+        ${daysHtml}
+        <script>window.onload = () => { window.print(); };</script>
+      </body></html>
+    `);
+    win.document.close();
   },
 
   formatDate(dateStr) {

@@ -418,6 +418,7 @@
   </div>
 
   <!-- Scripts -->
-  <script src="assets/js/app.js?v=13"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="assets/js/app.js?v=14"></script>
 </body>
 </html>

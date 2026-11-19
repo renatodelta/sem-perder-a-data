@@ -1,11 +1,12 @@
 // sw.js - Service Worker Seguro para PWA (Família em Dia)
-const CACHE_NAME = 'familia-em-dia-v10';
+const CACHE_NAME = 'familia-em-dia-v11';
 const CORE_ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './assets/css/style.css?v=6',
-  './assets/js/app.js?v=6',
+  './assets/css/style.css?v=9',
+  './assets/js/app.js?v=14',
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png'
 ];
