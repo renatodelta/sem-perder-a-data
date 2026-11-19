@@ -940,10 +940,10 @@ const App = {
 
     let html = `
       <div class="logistics-hero-banner">
-        <div class="banner-tag">🚗 Carona e Economia</div>
+        <div class="banner-tag">📍 Saídas Agrupadas</div>
         <h2 class="banner-title">Otimizador de Saídas da Ednéia</h2>
         <p class="banner-desc">
-          O sistema agrupa quem tem consulta ou exame na mesma cidade e data para economizar viagens e tempo!
+          O sistema agrupa quem tem consulta ou exame na mesma cidade e data para facilitar a organização!
         </p>
       </div>
 
@@ -1233,12 +1233,16 @@ const App = {
       Object.keys(citiesOnDay).forEach(cName => {
         const personsInCity = Array.from(citiesOnDay[cName]);
         if (personsInCity.length > 1) {
+          const escapedPeople = personsInCity.map(p => this.escapeHtml(p));
+          const peopleStr = escapedPeople.length > 1
+            ? `${escapedPeople.slice(0, -1).join(', ')} e ${escapedPeople[escapedPeople.length - 1]}`
+            : escapedPeople[0];
           caronaNoticeHtml += `
             <div class="day-carona-alert">
-              <span>🚗</span>
+              <span>📍</span>
               <div>
-                <strong>Carona no dia para ${this.escapeHtml(cName)}:</strong>
-                <span>${personsInCity.map(p => this.escapeHtml(p)).join(' e ')} vão na mesma cidade!</span>
+                <strong>${this.escapeHtml(cName)}:</strong>
+                <span>${peopleStr} vão para a mesma cidade.</span>
               </div>
             </div>
           `;
@@ -2366,7 +2370,7 @@ const App = {
       const dayLong = this.sanitizePdfText(this.getDayFormattedLong(dateStr));
       const dayDateFormatted = dateStr && !dateStr.startsWith('9999') ? this.formatDate(dateStr) : 'Sem data';
 
-      // Verifica carona no dia
+      // Verifica se há mais de uma pessoa indo para a mesma cidade no dia
       const citiesOnDay = {};
       dayEvents.forEach(ev => {
         const c = (ev.city || '').trim();
@@ -2375,11 +2379,12 @@ const App = {
           citiesOnDay[c].add(ev.person_name);
         }
       });
-      const caronas = [];
+      const sameCityNotices = [];
       Object.keys(citiesOnDay).forEach(cName => {
         const people = Array.from(citiesOnDay[cName]);
         if (people.length > 1) {
-          caronas.push(`Carona para ${cName}: ${people.join(' e ')}`);
+          const peopleStr = `${people.slice(0, -1).join(', ')} e ${people[people.length - 1]}`;
+          sameCityNotices.push(`${cName}: ${peopleStr} vão para a mesma cidade.`);
         }
       });
 
@@ -2401,19 +2406,19 @@ const App = {
       doc.text(`${dayEvents.length} ${dayEvents.length === 1 ? 'evento' : 'eventos'}`, pageW - margin - 3, y + 5.8, { align: 'right' });
       y += 10.5;
 
-      // Alerta de carona do dia, se houver
-      if (caronas.length > 0) {
-        const caronaLines = doc.splitTextToSize(this.sanitizePdfText(caronas.join('  |  ')), contentW - 8);
-        const caronaH = 4 + caronaLines.length * 4;
-        ensureSpace(caronaH + 2);
+      // Aviso de mesma cidade no dia, se houver
+      if (sameCityNotices.length > 0) {
+        const noticeLines = doc.splitTextToSize(this.sanitizePdfText(sameCityNotices.join('  |  ')), contentW - 8);
+        const noticeH = 4 + noticeLines.length * 4;
+        ensureSpace(noticeH + 2);
         doc.setFillColor(254, 243, 199);
         doc.setDrawColor(253, 230, 138);
-        doc.roundedRect(margin, y, contentW, caronaH, 1.5, 1.5, 'FD');
+        doc.roundedRect(margin, y, contentW, noticeH, 1.5, 1.5, 'FD');
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(8);
         doc.setTextColor(146, 64, 14);
-        doc.text(caronaLines, margin + 4, y + 4.5);
-        y += caronaH + 3;
+        doc.text(noticeLines, margin + 4, y + 4.5);
+        y += noticeH + 3;
       }
 
       // Eventos do dia
